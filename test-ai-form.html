@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Form Filler Test - Advanced</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        h2 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        .ai-test { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .ai-test h3 { color: #28a745; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>AI Form Filler Test - Advanced Scenarios</h1>
+    <p>This form tests both simple pattern matching and advanced AI context understanding.</p>
+    
+    <form>
+        <h2>Personal Information (Fast Path)</h2>
+        <div class="form-group">
+            <label for="full-name">Full Name:</label>
+            <input type="text" id="full-name" name="full-name" placeholder="Enter your full name">
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">Phone Number:</label>
+            <input type="tel" id="phone" name="phone" placeholder="Enter your phone number">
+        </div>
+        
+        <div class="form-group">
+            <label for="birth-date">Date of Birth:</label>
+            <input type="date" id="birth-date" name="birth-date">
+        </div>
+        
+        <h2>Professional Information</h2>
+        <div class="form-group">
+            <label for="company">Company Name:</label>
+            <input type="text" id="company" name="company" placeholder="Enter your company">
+        </div>
+        
+        <div class="form-group">
+            <label for="job-title">Job Title:</label>
+            <input type="text" id="job-title" name="job-title" placeholder="What is your current position?">
+        </div>
+        
+        <div class="form-group">
+            <label for="annual-salary">Annual Salary:</label>
+            <input type="text" id="annual-salary" name="annual-salary" placeholder="Your yearly income">
+        </div>
+        
+        <h2>Address Information</h2>
+        <div class="form-group">
+            <label for="address">Street Address:</label>
+            <input type="text" id="address" name="address" placeholder="Enter your address">
+        </div>
+        
+        <div class="form-group">
+            <label for="city">City:</label>
+            <input type="text" id="city" name="city" placeholder="Enter your city">
+        </div>
+        
+        <div class="form-group">
+            <label for="zipcode">ZIP Code:</label>
+            <input type="text" id="zipcode" name="zipcode" placeholder="Enter ZIP code">
+        </div>
+        
+        <div class="form-group">
+            <label for="country">Country:</label>
+            <input type="text" id="country" name="country" placeholder="Enter your country">
+        </div>
+        
+        <div class="ai-test">
+            <h3>🤖 AI Context Understanding Test</h3>
+            <p>These fields require AI to understand context and intent:</p>
+            
+            <div class="form-group">
+                <label for="emergency-contact">Emergency Contact Person:</label>
+                <input type="text" id="emergency-contact" name="emergency-contact" placeholder="Who should we contact in case of emergency?">
+            </div>
+            
+            <div class="form-group">
+                <label for="workplace">Where do you work?</label>
+                <input type="text" id="workplace" name="workplace" placeholder="Tell us about your workplace">
+            </div>
+            
+            <div class="form-group">
+                <label for="hometown">What city are you from originally?</label>
+                <input type="text" id="hometown" name="hometown" placeholder="Your place of birth or hometown">
+            </div>
+            
+            <div class="form-group">
+                <label for="contact-method">Preferred contact method:</label>
+                <input type="text" id="contact-method" name="contact-method" placeholder="How would you like us to reach you?">
+            </div>
+            
+            <div class="form-group">
+                <label for="supervisor">Who is your direct supervisor?</label>
+                <input type="text" id="supervisor" name="supervisor" placeholder="Name of your manager or boss">
+            </div>
+            
+            <div class="form-group">
+                <label for="reference">Professional reference:</label>
+                <input type="text" id="reference" name="reference" placeholder="Someone who can vouch for your work">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="comments">Additional Comments:</label>
+            <textarea id="comments" name="comments" rows="4" placeholder="Any additional information"></textarea>
+        </div>
+        
+        <button type="submit">Submit Form</button>
+    </form>
+    
+    <div style="margin-top: 30px; padding: 15px; background: #e9ecef; border-radius: 5px;">
+        <h3>How to Test:</h3>
+        <ol>
+            <li>Install the AI Form Filler extension</li>
+            <li>Click the extension icon in your browser toolbar</li>
+            <li>Select an AI model (try different ones to see the difference)</li>
+            <li>Click "Fill Forms" and watch the magic happen!</li>
+            <li>Check the browser console (F12) to see detailed AI analysis logs</li>
+        </ol>
+        <p><strong>Expected behavior:</strong> Simple fields (name, email, phone) should fill instantly via pattern matching. Complex fields should be analyzed by AI to understand context and fill appropriately.</p>
+    </div>
+</body>
+</html>

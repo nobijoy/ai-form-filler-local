@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Form Filler</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <img src="/icons/icon48.png" alt="AI Form Filler Icon" class="logo">
+      <h1>AI Form Filler</h1>
+    </div>
+    
+    <div class="control-group">
+      <label for="model-select">Select AI Model:</label>
+      <select id="model-select">
+        <option value="gunghio/xlm-roberta-base-finetuned-panx-ner">Multi-lingual (High Accuracy)</option>
+        <option value="gunghio/distilbert-base-multilingual-cased-finetuned-conll2003-ner">Multi-lingual (Fast)</option>
+        <option value="dslim/bert-base-NER">English Only (High Accuracy)</option>
+      </select>
+    </div>
+
+    <button id="fill-btn">Fill Forms</button>
+    
+    <div id="status"></div>
+  </div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

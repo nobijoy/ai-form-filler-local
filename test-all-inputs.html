@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Input Types Test - AI Form Filler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .form-section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-group label {
+            min-width: 150px;
+            font-weight: bold;
+        }
+        input, textarea, select, output {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex: 1;
+        }
+        input[type="radio"], input[type="checkbox"] {
+            flex: none;
+            margin-right: 5px;
+        }
+        .radio-group, .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .test-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .skip-info {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Complete HTML Input Types Test</h1>
+    
+    <div class="test-info">
+        <h3>🎯 Testing ALL HTML Input Types & Form Elements</h3>
+        <p>This form tests every possible HTML input type and form element to ensure the AI Form Filler extension supports them all.</p>
+    </div>
+
+    <form>
+        <!-- Text-based Inputs -->
+        <div class="form-section">
+            <h2>📝 Text-based Inputs</h2>
+            
+            <div class="input-group">
+                <label for="text-input">Text:</label>
+                <input type="text" id="text-input" name="text-input" placeholder="Regular text input">
+            </div>
+            
+            <div class="input-group">
+                <label for="email-input">Email:</label>
+                <input type="email" id="email-input" name="email-input" placeholder="Should match name">
+            </div>
+            
+            <div class="input-group">
+                <label for="password-input">Password:</label>
+                <input type="password" id="password-input" name="password-input" placeholder="Secure password">
+            </div>
+            
+            <div class="input-group">
+                <label for="tel-input">Tel:</label>
+                <input type="tel" id="tel-input" name="tel-input" placeholder="Phone number">
+            </div>
+            
+            <div class="input-group">
+                <label for="url-input">URL:</label>
+                <input type="url" id="url-input" name="url-input" placeholder="Website URL">
+            </div>
+            
+            <div class="input-group">
+                <label for="search-input">Search:</label>
+                <input type="search" id="search-input" name="search-input" placeholder="Search terms">
+            </div>
+            
+            <div class="input-group">
+                <label for="textarea-input">Textarea:</label>
+                <textarea id="textarea-input" name="textarea-input" rows="3" placeholder="Multi-line text"></textarea>
+            </div>
+        </div>
+
+        <!-- Number & Range Inputs -->
+        <div class="form-section">
+            <h2>🔢 Number & Range Inputs</h2>
+            
+            <div class="input-group">
+                <label for="number-input">Number:</label>
+                <input type="number" id="number-input" name="number-input" min="1" max="100" placeholder="1-100">
+            </div>
+            
+            <div class="input-group">
+                <label for="range-input">Range:</label>
+                <input type="range" id="range-input" name="range-input" min="0" max="100" value="50">
+                <span>0-100</span>
+            </div>
+        </div>
+
+        <!-- Date & Time Inputs -->
+        <div class="form-section">
+            <h2>📅 Date & Time Inputs</h2>
+            
+            <div class="input-group">
+                <label for="date-input">Date:</label>
+                <input type="date" id="date-input" name="date-input">
+            </div>
+            
+            <div class="input-group">
+                <label for="time-input">Time:</label>
+                <input type="time" id="time-input" name="time-input">
+            </div>
+            
+            <div class="input-group">
+                <label for="datetime-input">DateTime-Local:</label>
+                <input type="datetime-local" id="datetime-input" name="datetime-input">
+            </div>
+            
+            <div class="input-group">
+                <label for="month-input">Month:</label>
+                <input type="month" id="month-input" name="month-input">
+            </div>
+            
+            <div class="input-group">
+                <label for="week-input">Week:</label>
+                <input type="week" id="week-input" name="week-input">
+            </div>
+        </div>
+
+        <!-- Color Input -->
+        <div class="form-section">
+            <h2>🎨 Color Input</h2>
+            
+            <div class="input-group">
+                <label for="color-input">Color:</label>
+                <input type="color" id="color-input" name="color-input">
+            </div>
+        </div>
+
+        <!-- Radio Buttons -->
+        <div class="form-section">
+            <h2>🔘 Radio Buttons</h2>
+            
+            <div class="input-group">
+                <label>Gender:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="gender" value="male"> Male</label>
+                    <label><input type="radio" name="gender" value="female"> Female</label>
+                    <label><input type="radio" name="gender" value="other"> Other</label>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Experience:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="experience" value="beginner"> Beginner</label>
+                    <label><input type="radio" name="experience" value="intermediate"> Intermediate</label>
+                    <label><input type="radio" name="experience" value="advanced"> Advanced</label>
+                    <label><input type="radio" name="experience" value="expert"> Expert</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkboxes -->
+        <div class="form-section">
+            <h2>☑️ Checkboxes</h2>
+            
+            <div class="input-group">
+                <label>Interests:</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="interests" value="tech"> Technology</label>
+                    <label><input type="checkbox" name="interests" value="sports"> Sports</label>
+                    <label><input type="checkbox" name="interests" value="music"> Music</label>
+                    <label><input type="checkbox" name="interests" value="travel"> Travel</label>
+                    <label><input type="checkbox" name="interests" value="reading"> Reading</label>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Preferences:</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="newsletter" value="yes"> Newsletter</label>
+                    <label><input type="checkbox" name="terms" value="accepted"> Terms & Conditions</label>
+                    <label><input type="checkbox" name="privacy" value="accepted"> Privacy Policy</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Select Dropdown -->
+        <div class="form-section">
+            <h2>📋 Select Dropdown</h2>
+            
+            <div class="input-group">
+                <label for="country-select">Country:</label>
+                <select id="country-select" name="country-select">
+                    <option value="">Choose a country</option>
+                    <option value="US">United States</option>
+                    <option value="CA">Canada</option>
+                    <option value="UK">United Kingdom</option>
+                    <option value="DE">Germany</option>
+                    <option value="FR">France</option>
+                    <option value="JP">Japan</option>
+                    <option value="AU">Australia</option>
+                    <option value="IN">India</option>
+                    <option value="BR">Brazil</option>
+                    <option value="MX">Mexico</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="priority-select">Priority:</label>
+                <select id="priority-select" name="priority-select">
+                    <option value="">Select priority</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Output Element -->
+        <div class="form-section">
+            <h2>📊 Output Element</h2>
+            
+            <div class="input-group">
+                <label for="calculation-output">Calculation Result:</label>
+                <output id="calculation-output" name="calculation-output" for="number-input range-input">0</output>
+            </div>
+        </div>
+
+        <!-- File Upload (Should be skipped) -->
+        <div class="form-section">
+            <h2>📎 File Upload (Should be SKIPPED)</h2>
+            
+            <div class="input-group">
+                <label for="file-input">File Upload:</label>
+                <input type="file" id="file-input" name="file-input" accept=".pdf,.doc,.docx">
+            </div>
+            
+            <div class="skip-info">
+                ⚠️ This field should remain empty - file uploads are intentionally skipped by the extension.
+            </div>
+        </div>
+
+        <!-- Hidden Inputs (Should be skipped) -->
+        <input type="hidden" name="hidden-field" value="should-not-be-touched">
+
+        <!-- Submit Button -->
+        <div class="form-section">
+            <button type="submit">Submit Form</button>
+            <button type="reset">Reset Form</button>
+        </div>
+    </form>
+
+    <div class="test-info">
+        <h3>🔍 Expected Results After Clicking "Fill Forms":</h3>
+        <ul>
+            <li>✅ <strong>Text inputs:</strong> Filled with appropriate fake data</li>
+            <li>✅ <strong>Email:</strong> Should match the name (e.g., john.doe@example.com)</li>
+            <li>✅ <strong>Numbers:</strong> Random numbers within specified ranges</li>
+            <li>✅ <strong>Dates/Times:</strong> Valid date/time values in correct formats</li>
+            <li>✅ <strong>Color:</strong> Random hex color value</li>
+            <li>✅ <strong>Range:</strong> Value between min/max</li>
+            <li>✅ <strong>Radio buttons:</strong> One selected per group</li>
+            <li>✅ <strong>Checkboxes:</strong> Some randomly checked (~70% chance each)</li>
+            <li>✅ <strong>Select dropdowns:</strong> Random valid option selected</li>
+            <li>✅ <strong>Output:</strong> Calculated or random value</li>
+            <li>❌ <strong>File upload:</strong> Should remain empty</li>
+            <li>❌ <strong>Hidden fields:</strong> Should not be modified</li>
+        </ul>
+    </div>
+</body>
+</html>

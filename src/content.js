@@ -1,0 +1,875 @@
+import { faker } from "@faker-js/faker";
+import { franc } from "franc-min";
+
+// Faker uses English by default in newer versions, no need to set locale
+
+// Listener for messages from the popup and background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "executeFill") {
+    const model = message.model; // Get the model from the popup/background script
+    console.log(`🚀 Starting form fill with model: ${model}`);
+    fillForms(model)
+      .then((results) => {
+        console.log(
+          `✅ Form fill completed: ${results.length} fields processed`
+        );
+        sendResponse({ success: true, results });
+      })
+      .catch((error) => {
+        console.error("❌ Error filling forms:", error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Indicates that the response is sent asynchronously
+  }
+});
+
+async function fillForms(model) {
+  // Now takes model as parameter
+  const results = [];
+  const inputs = document.querySelectorAll(
+    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="file"]):not([type="image"]), textarea, select, output'
+  );
+
+  const lang = document.documentElement.lang || franc(document.body.innerText);
+  console.log("Detected language:", lang);
+
+  // Store generated user data for consistency
+  let generatedUserData = {
+    fullName: null,
+    firstName: null,
+    lastName: null,
+  };
+
+  // Track processed radio groups to avoid duplicates
+  const processedRadioGroups = new Set();
+
+  for (const input of inputs) {
+    // Skip if this is a radio button and we've already processed its group
+    if (input.type === "radio" && processedRadioGroups.has(input.name)) {
+      continue;
+    }
+
+    // For non-radio/checkbox inputs, only fill if empty
+    // For radio/checkbox, process regardless of current state
+    const shouldProcess =
+      input.type === "radio" ||
+      input.type === "checkbox" ||
+      (!input.value && !input.checked);
+
+    if (shouldProcess) {
+      const label = findLabelForInput(input);
+      const textToAnalyze = label
+        ? label.innerText
+        : input.placeholder || input.name || input.id || "";
+
+      if (textToAnalyze) {
+        console.log(
+          `Analyzing field: "${textToAnalyze}" for input:`,
+          input.name || input.id
+        );
+
+        // Mark radio group as processed
+        if (input.type === "radio") {
+          processedRadioGroups.add(input.name);
+        }
+
+        // Use AI to understand the field context
+        try {
+          // Get more context for better AI analysis
+          const contextText = getFieldContext(input, textToAnalyze);
+          console.log(`🤖 Sending to AI: "${contextText}"`);
+
+          const aiResponse = await chrome.runtime.sendMessage({
+            action: "performNER",
+            text: contextText,
+            model: model,
+          });
+
+          if (aiResponse && aiResponse.success) {
+            const entities = aiResponse.entities;
+            console.log(`🤖 AI Response for "${textToAnalyze}":`, entities);
+
+            const aiFilled = fillField(
+              input,
+              entities,
+              lang,
+              textToAnalyze,
+              null,
+              generatedUserData
+            );
+            if (aiFilled) {
+              // Determine the method and display value
+              let method = "ai-ner";
+              let displayValue;
+              let topEntities = "";
+
+              if (entities && entities.length > 0) {
+                topEntities = entities
+                  .slice(0, 3)
+                  .map((e) => `${e.entity}(${Math.round(e.score * 100)}%)`)
+                  .join(", ");
+              } else {
+                method = "fallback";
+                topEntities = "direct-handling";
+              }
+
+              if (input.type === "radio") {
+                const selectedRadio = document.querySelector(
+                  `input[type="radio"][name="${input.name}"]:checked`
+                );
+                displayValue = selectedRadio
+                  ? `${selectedRadio.value} (selected)`
+                  : "none selected";
+              } else if (input.type === "checkbox") {
+                displayValue = `${input.checked ? "checked" : "unchecked"}`;
+              } else {
+                displayValue = input.value;
+              }
+
+              console.log(
+                `✅ ${
+                  method === "ai-ner" ? "AI" : "Fallback"
+                } filled: ${textToAnalyze} -> ${displayValue} (entities: ${topEntities})`
+              );
+              results.push({
+                field: textToAnalyze,
+                filled_with: displayValue,
+                method: method,
+                entities:
+                  entities && entities.length > 0
+                    ? entities.slice(0, 3)
+                    : [{ entity: "FALLBACK", score: 1.0 }],
+              });
+            } else {
+              console.log(
+                `❌ AI couldn't fill: ${textToAnalyze} (entities: ${entities
+                  .map((e) => e.entity)
+                  .join(", ")})`
+              );
+            }
+          } else {
+            console.warn(
+              "❌ AI analysis failed for text:",
+              textToAnalyze,
+              "Error:",
+              aiResponse?.error
+            );
+          }
+        } catch (error) {
+          console.warn("Error during AI analysis:", error);
+        }
+      }
+    }
+  }
+  return results;
+}
+
+function findLabelForInput(input) {
+  // Check for a wrapping label
+  let label = input.closest("label");
+  if (label) return label;
+
+  // Check for a `for` attribute
+  if (input.id) {
+    label = document.querySelector(`label[for="${input.id}"]`);
+    if (label) return label;
+  }
+
+  // For radio buttons and checkboxes, try to find group label
+  if (input.type === "radio" || input.type === "checkbox") {
+    // Look for a parent container with a label
+    const container = input.closest(
+      ".input-group, .form-group, .field-group, fieldset"
+    );
+    if (container) {
+      // Try to find a label within the container that's not wrapping an input
+      const containerLabel = container.querySelector("label:not(:has(input))");
+      if (containerLabel) return containerLabel;
+
+      // Try to find any label in the container
+      const anyLabel = container.querySelector("label");
+      if (anyLabel) return anyLabel;
+    }
+
+    // Look for preceding text or label
+    let prev = input.parentElement?.previousElementSibling;
+    while (prev) {
+      if (prev.tagName === "LABEL") return prev;
+      if (prev.textContent?.trim()) {
+        // Create a virtual label element for text content
+        const virtualLabel = document.createElement("label");
+        virtualLabel.innerText = prev.textContent.trim();
+        return virtualLabel;
+      }
+      prev = prev.previousElementSibling;
+    }
+  }
+
+  return null;
+}
+
+function getFieldContext(input, textToAnalyze) {
+  // Get surrounding context to help AI understand the field better
+  let context = textToAnalyze;
+
+  // Special handling for radio buttons and checkboxes
+  if (input.type === "radio" || input.type === "checkbox") {
+    // Add the input's value/label to context
+    if (input.value) {
+      context += ` ${input.value}`;
+    }
+
+    // For radio buttons, add all options in the group
+    if (input.type === "radio" && input.name) {
+      const radioGroup = document.querySelectorAll(
+        `input[type="radio"][name="${input.name}"]`
+      );
+      const options = Array.from(radioGroup)
+        .map((radio) => {
+          const radioLabel = findLabelForInput(radio);
+          return radioLabel ? radioLabel.innerText.trim() : radio.value;
+        })
+        .filter(Boolean);
+
+      if (options.length > 0) {
+        context += ` (options: ${options.join(", ")})`;
+      }
+    }
+
+    // For checkboxes with the same name, add all options
+    if (input.type === "checkbox" && input.name) {
+      const checkboxGroup = document.querySelectorAll(
+        `input[type="checkbox"][name="${input.name}"]`
+      );
+      if (checkboxGroup.length > 1) {
+        const options = Array.from(checkboxGroup)
+          .map((checkbox) => {
+            const checkboxLabel = findLabelForInput(checkbox);
+            return checkboxLabel
+              ? checkboxLabel.innerText.trim()
+              : checkbox.value;
+          })
+          .filter(Boolean);
+
+        if (options.length > 0) {
+          context += ` (options: ${options.join(", ")})`;
+        }
+      }
+    }
+  } else {
+    // Add nearby text content for context (for non-radio/checkbox inputs)
+    const parent = input.parentElement;
+    if (parent) {
+      const siblings = Array.from(parent.children);
+      const inputIndex = siblings.indexOf(input);
+
+      // Get text from previous and next siblings
+      if (inputIndex > 0) {
+        const prevText = siblings[inputIndex - 1].textContent?.trim();
+        if (prevText && prevText.length < 50) {
+          context = prevText + " " + context;
+        }
+      }
+
+      if (inputIndex < siblings.length - 1) {
+        const nextText = siblings[inputIndex + 1].textContent?.trim();
+        if (nextText && nextText.length < 50) {
+          context = context + " " + nextText;
+        }
+      }
+    }
+  }
+
+  // Add input attributes for more context
+  if (input.type) context += ` (${input.type} field)`;
+  if (input.required) context += " (required)";
+  if (input.pattern) context += ` (pattern: ${input.pattern})`;
+
+  return context.trim();
+}
+
+function fillField(
+  input,
+  entities,
+  lang,
+  textToAnalyze = "",
+  analysis = null,
+  userData = {}
+) {
+  const entityMap = {
+    // BIO tagging format (B- = Beginning, I- = Inside)
+    "B-PER": () => generatePersonName(userData),
+    "I-PER": () => generatePersonName(userData),
+    "B-PERSON": () => generatePersonName(userData),
+    "I-PERSON": () => generatePersonName(userData),
+    "B-ORG": () => faker.company.name(),
+    "I-ORG": () => faker.company.name(),
+    "B-ORGANIZATION": () => faker.company.name(),
+    "I-ORGANIZATION": () => faker.company.name(),
+    "B-LOC": () => faker.location.city(),
+    "I-LOC": () => faker.location.city(),
+    "B-LOCATION": () => faker.location.city(),
+    "I-LOCATION": () => faker.location.city(),
+    "B-GPE": () => faker.location.city(), // Geopolitical entity
+    "I-GPE": () => faker.location.city(),
+    "B-DATE": () => faker.date.future().toISOString().split("T")[0],
+    "I-DATE": () => faker.date.future().toISOString().split("T")[0],
+    "B-TIME": () => faker.date.future().toISOString().split("T")[0],
+    "I-TIME": () => faker.date.future().toISOString().split("T")[0],
+    "B-MONEY": () => faker.finance.amount(),
+    "I-MONEY": () => faker.finance.amount(),
+    "B-PERCENT": () => faker.number.int({ min: 1, max: 100 }) + "%",
+    "I-PERCENT": () => faker.number.int({ min: 1, max: 100 }) + "%",
+
+    // Legacy format (without BIO tags)
+    PER: () => generatePersonName(userData),
+    PERSON: () => generatePersonName(userData),
+    ORG: () => faker.company.name(),
+    ORGANIZATION: () => faker.company.name(),
+    LOC: () => faker.location.city(),
+    LOCATION: () => faker.location.city(),
+    GPE: () => faker.location.city(),
+    DATE: () => faker.date.future().toISOString().split("T")[0],
+    TIME: () => faker.date.future().toISOString().split("T")[0],
+    PHONE: () => faker.phone.number(),
+    EMAIL: () => generateEmail(userData),
+    MONEY: () => faker.finance.amount(),
+    PERCENT: () => faker.number.int({ min: 1, max: 100 }) + "%",
+    NUMBER: () => faker.number.int({ min: 1, max: 100 }).toString(),
+    TEXT: () => faker.person.fullName(), // Better default for text fields
+    PASSWORD: () => faker.internet.password(),
+    URL: () => faker.internet.url(),
+    SEARCH: () => faker.commerce.productName(),
+    COLOR: () => faker.internet.color(),
+    RANGE: () => faker.number.int({ min: 0, max: 100 }).toString(),
+    TIME: () =>
+      faker.date.recent().toTimeString().split(" ")[0].substring(0, 5),
+    DATETIME: () => faker.date.recent().toISOString().slice(0, 16),
+    MONTH: () => faker.date.recent().toISOString().slice(0, 7),
+    WEEK: () => {
+      const date = faker.date.recent();
+      const year = date.getFullYear();
+      const week = Math.ceil(
+        (date.getTime() - new Date(year, 0, 1).getTime()) /
+          (7 * 24 * 60 * 60 * 1000)
+      );
+      return `${year}-W${week.toString().padStart(2, "0")}`;
+    },
+
+    // Additional entity types for better field recognition
+    GENDER: () => faker.person.sex(),
+    EXPERIENCE: () =>
+      faker.helpers.arrayElement([
+        "beginner",
+        "intermediate",
+        "advanced",
+        "expert",
+      ]),
+    PRIORITY: () =>
+      faker.helpers.arrayElement(["low", "medium", "high", "urgent"]),
+    INTEREST: () =>
+      faker.helpers.arrayElement([
+        "technology",
+        "sports",
+        "music",
+        "travel",
+        "reading",
+      ]),
+    INTERESTS: () =>
+      faker.helpers.arrayElement([
+        "technology",
+        "sports",
+        "music",
+        "travel",
+        "reading",
+      ]),
+    PREFERENCE: () => faker.datatype.boolean(),
+    PREFERENCES: () => faker.datatype.boolean(),
+    NEWSLETTER: () => faker.datatype.boolean(),
+    TERMS: () => faker.datatype.boolean(),
+    PRIVACY: () => faker.datatype.boolean(),
+    COUNTRY: () => faker.location.countryCode(),
+    SELECTION: () => faker.commerce.productName(),
+    OPTION: () => faker.commerce.productName(),
+    CHOICE: () => faker.commerce.productName(),
+  };
+
+  // Skip fast path - let everything go through AI for better accuracy
+  console.log(`🤖 Skipping fast path, sending to AI: "${textToAnalyze}"`);
+
+  // AI path - use NER results to understand field context
+  if (entities && entities.length > 0) {
+    console.log(`🤖 Processing AI entities for "${textToAnalyze}":`, entities);
+
+    // Sort entities by confidence if available
+    const sortedEntities = entities.sort(
+      (a, b) => (b.score || 0) - (a.score || 0)
+    );
+
+    for (const entity of sortedEntities) {
+      console.log(
+        `🤖 Checking entity: ${entity.entity} (score: ${entity.score})`
+      );
+
+      // Try exact match first
+      if (entityMap[entity.entity]) {
+        console.log(`✅ Found exact match for: ${entity.entity}`);
+        const generator = entityMap[entity.entity];
+        let value = generator();
+        console.log(`🎲 Generated value: "${value}" (type: ${typeof value})`);
+
+        // Apply constraints
+        console.log(
+          `🔍 Input maxLength: ${input.maxLength}, value length: ${value.length}`
+        );
+        if (
+          input.maxLength &&
+          input.maxLength > 0 &&
+          value.length > input.maxLength
+        ) {
+          console.log(
+            `✂️ Trimming value from ${value.length} to ${input.maxLength} chars`
+          );
+          value = value.substring(0, input.maxLength);
+        }
+
+        console.log(`📝 Setting input.value to: "${value}"`);
+        console.log(
+          `🔍 Input properties: readonly=${input.readOnly}, disabled=${input.disabled}, type=${input.type}`
+        );
+
+        // Handle all input types with a comprehensive function
+        handleInputType(input, value);
+
+        // Try triggering input events to make sure the change is registered
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        console.log(`✅ Input value after setting: "${input.value}"`);
+        return true;
+      }
+
+      // Try uppercase match
+      if (entityMap[entity.entity.toUpperCase()]) {
+        console.log(
+          `✅ Found uppercase match for: ${entity.entity.toUpperCase()}`
+        );
+        const generator = entityMap[entity.entity.toUpperCase()];
+        let value = generator();
+
+        // Apply constraints
+        if (
+          input.maxLength &&
+          input.maxLength > 0 &&
+          value.length > input.maxLength
+        ) {
+          value = value.substring(0, input.maxLength);
+        }
+
+        handleInputType(input, value);
+
+        // Try triggering input events to make sure the change is registered
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        return true;
+      }
+
+      console.log(`❌ No mapping found for entity: ${entity.entity}`);
+    }
+
+    console.log(`❌ No usable entities found for "${textToAnalyze}"`);
+  }
+
+  // Smart Fallback: If AI didn't return entities or couldn't match them,
+  // try pattern-based field recognition
+  console.log(
+    `🔄 Smart Fallback: Analyzing "${textToAnalyze}" with pattern matching`
+  );
+
+  const fieldType = detectFieldType(textToAnalyze, input);
+  if (fieldType) {
+    console.log(`🎯 Pattern detected: ${fieldType}`);
+
+    let value;
+    switch (fieldType) {
+      case "PERSON_NAME":
+      case "FULL_NAME":
+      case "NAME":
+        value = generatePersonName(userData);
+        break;
+      case "FIRST_NAME":
+        ensureUserData(userData);
+        value = userData.firstName;
+        break;
+      case "LAST_NAME":
+        ensureUserData(userData);
+        value = userData.lastName;
+        break;
+      case "EMAIL":
+        value = generateEmail(userData);
+        break;
+      case "COMPANY":
+      case "ORGANIZATION":
+        value = faker.company.name();
+        break;
+      case "PHONE":
+        value = faker.phone.number();
+        break;
+      case "CITY":
+      case "LOCATION":
+        value = faker.location.city();
+        break;
+      case "ADDRESS":
+        value = faker.location.streetAddress();
+        break;
+      case "COUNTRY":
+        value = faker.location.country();
+        break;
+      case "JOB_TITLE":
+        value = faker.person.jobTitle();
+        break;
+      case "SUPERVISOR":
+        value = generatePersonName({}); // Different person for supervisor
+        break;
+      case "PASSWORD":
+        value = faker.internet.password();
+        break;
+      case "URL":
+        value = faker.internet.url();
+        break;
+      case "DATE":
+        value = faker.date.future().toISOString().split("T")[0];
+        break;
+      case "NUMBER":
+        value = faker.number.int({ min: 1, max: 100 }).toString();
+        break;
+      case "TEXT":
+      default:
+        // For text fields, generate appropriate content based on context
+        const lowerContext = textToAnalyze.toLowerCase();
+        if (
+          lowerContext.includes("comment") ||
+          lowerContext.includes("description") ||
+          lowerContext.includes("message") ||
+          lowerContext.includes("note") ||
+          lowerContext.includes("detail")
+        ) {
+          value = "This is a sample comment for testing purposes.";
+        } else if (
+          lowerContext.includes("supervisor") ||
+          lowerContext.includes("manager") ||
+          lowerContext.includes("boss")
+        ) {
+          value = generatePersonName({}); // Different person for supervisor
+        } else if (
+          lowerContext.includes("work") ||
+          lowerContext.includes("company") ||
+          lowerContext.includes("employ")
+        ) {
+          value = faker.company.name();
+        } else if (
+          lowerContext.includes("city") ||
+          lowerContext.includes("from") ||
+          lowerContext.includes("location")
+        ) {
+          value = faker.location.city();
+        } else if (lowerContext.includes("name")) {
+          value = generatePersonName(userData);
+        } else {
+          // Generic fallback - use a person name as it's most commonly needed
+          value = generatePersonName(userData);
+        }
+        break;
+    }
+
+    console.log(`🎲 Pattern-generated value: "${value}"`);
+    handleInputType(input, value);
+
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    console.log(`✅ Pattern filled: ${textToAnalyze} -> ${input.value}`);
+    return true;
+  }
+
+  // Final fallback for radio buttons and checkboxes
+  if (input.type === "radio" || input.type === "checkbox") {
+    console.log(
+      `🔄 Final Fallback: Handling ${input.type} directly without AI entities`
+    );
+    handleInputType(input, null);
+
+    const displayValue =
+      input.type === "radio"
+        ? (document.querySelector(
+            `input[type="radio"][name="${input.name}"]:checked`
+          )?.value || "none") + " (selected)"
+        : `${input.checked ? "checked" : "unchecked"}`;
+
+    console.log(`✅ Fallback filled: ${textToAnalyze} -> ${displayValue}`);
+    return true;
+  }
+
+  return false;
+}
+
+// Smart field type detection based on patterns
+function detectFieldType(text, input) {
+  const lowerText = text.toLowerCase();
+  const inputType = input.type?.toLowerCase();
+  const inputName = input.name?.toLowerCase() || "";
+  const inputId = input.id?.toLowerCase() || "";
+  const placeholder = input.placeholder?.toLowerCase() || "";
+
+  // Combine all text sources for analysis
+  const allText =
+    `${lowerText} ${inputName} ${inputId} ${placeholder}`.toLowerCase();
+
+  // Email detection
+  if (inputType === "email" || /\b(email|e-mail|mail)\b/.test(allText)) {
+    return "EMAIL";
+  }
+
+  // Password detection
+  if (inputType === "password" || /\b(password|pwd|pass)\b/.test(allText)) {
+    return "PASSWORD";
+  }
+
+  // Phone detection
+  if (
+    inputType === "tel" ||
+    /\b(phone|tel|telephone|mobile|cell)\b/.test(allText)
+  ) {
+    return "PHONE";
+  }
+
+  // URL detection
+  if (inputType === "url" || /\b(url|website|link|homepage)\b/.test(allText)) {
+    return "URL";
+  }
+
+  // Date detection
+  if (inputType === "date" || /\b(date|birthday|birth|dob)\b/.test(allText)) {
+    return "DATE";
+  }
+
+  // Number detection
+  if (
+    inputType === "number" ||
+    /\b(number|num|age|quantity|amount)\b/.test(allText)
+  ) {
+    return "NUMBER";
+  }
+
+  // Name detection (most specific first)
+  if (/\b(first\s*name|firstname|fname|given\s*name)\b/.test(allText)) {
+    return "FIRST_NAME";
+  }
+  if (/\b(last\s*name|lastname|lname|surname|family\s*name)\b/.test(allText)) {
+    return "LAST_NAME";
+  }
+  if (
+    /\b(full\s*name|fullname|complete\s*name|your\s*name|name)\b/.test(allText)
+  ) {
+    return "FULL_NAME";
+  }
+
+  // Company/Organization detection
+  if (
+    /\b(company|organization|organisation|employer|business|corp|corporation)\b/.test(
+      allText
+    )
+  ) {
+    return "COMPANY";
+  }
+
+  // Job/Position detection
+  if (/\b(job|position|title|role|occupation|profession)\b/.test(allText)) {
+    return "JOB_TITLE";
+  }
+
+  // Supervisor detection - more comprehensive patterns
+  if (
+    /\b(supervisor|manager|boss|superior|lead|director)\b/.test(allText) ||
+    /who.*is.*your.*(supervisor|manager|boss)/.test(allText) ||
+    /who.*do.*you.*report/.test(allText)
+  ) {
+    return "SUPERVISOR";
+  }
+
+  // Location detection - more comprehensive patterns
+  if (/\b(address|street|location|where.*live|residence)\b/.test(allText)) {
+    return "ADDRESS";
+  }
+  if (
+    /\b(city|town|municipality)\b/.test(allText) ||
+    /what.*city.*are.*you.*from/.test(allText) ||
+    /where.*are.*you.*from/.test(allText) ||
+    /which.*city/.test(allText)
+  ) {
+    return "CITY";
+  }
+  if (/\b(country|nation|nationality)\b/.test(allText)) {
+    return "COUNTRY";
+  }
+  if (
+    /\b(work|office|workplace)\b/.test(allText) ||
+    /where.*do.*you.*work/.test(allText) ||
+    /where.*are.*you.*employed/.test(allText) ||
+    /what.*company.*do.*you.*work/.test(allText)
+  ) {
+    return "COMPANY";
+  }
+
+  // Generic text detection
+  if (
+    input.tagName?.toLowerCase() === "textarea" ||
+    /\b(comment|description|message|note|detail|about|bio)\b/.test(allText)
+  ) {
+    return "TEXT";
+  }
+
+  return null;
+}
+
+// Helper function to ensure user data is initialized
+function ensureUserData(userData) {
+  if (!userData.firstName || !userData.lastName) {
+    userData.firstName = faker.person.firstName();
+    userData.lastName = faker.person.lastName();
+    userData.fullName = `${userData.firstName} ${userData.lastName}`;
+    console.log(
+      `👤 Generated new user: ${userData.firstName} ${userData.lastName}`
+    );
+  }
+}
+
+// Helper function to generate consistent person names
+function generatePersonName(userData) {
+  ensureUserData(userData);
+  console.log(`👤 Returning full name: "${userData.fullName}"`);
+  return userData.fullName;
+}
+
+// Helper function to generate consistent emails
+function generateEmail(userData) {
+  ensureUserData(userData);
+
+  // Generate email based on user's name (lowercase, no spaces)
+  const emailName = `${userData.firstName}.${userData.lastName}`.toLowerCase();
+  const domain = faker.internet.domainName();
+  const email = `${emailName}@${domain}`;
+  console.log(
+    `📧 Generated email: "${email}" for user: ${userData.firstName} ${userData.lastName}`
+  );
+  return email;
+}
+
+// Comprehensive input type handler
+function handleInputType(input, value) {
+  const inputType = input.type?.toLowerCase();
+  const tagName = input.tagName?.toLowerCase();
+
+  if (tagName === "select") {
+    const options = Array.from(input.options).filter(
+      (opt) => opt.value && opt.value !== ""
+    );
+    if (options.length > 0) {
+      const randomOption = options[Math.floor(Math.random() * options.length)];
+      input.value = randomOption.value;
+      console.log(
+        `🎯 Selected dropdown option: "${randomOption.text}" (value: "${randomOption.value}")`
+      );
+    } else {
+      input.value = value;
+    }
+  } else if (inputType === "radio") {
+    const radioGroup = document.querySelectorAll(
+      `input[type="radio"][name="${input.name}"]`
+    );
+    if (radioGroup.length > 0) {
+      // First, uncheck all radios in the group
+      radioGroup.forEach((radio) => (radio.checked = false));
+      // Then select a random one
+      const randomRadio =
+        radioGroup[Math.floor(Math.random() * radioGroup.length)];
+      randomRadio.checked = true;
+      console.log(
+        `🔘 Selected radio option: "${randomRadio.value}" from group "${input.name}"`
+      );
+
+      // Trigger change events on the selected radio
+      randomRadio.dispatchEvent(new Event("change", { bubbles: true }));
+      randomRadio.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  } else if (inputType === "checkbox") {
+    // 70% chance to check each checkbox
+    input.checked = Math.random() > 0.3;
+    console.log(
+      `☑️ Checkbox ${input.checked ? "checked" : "unchecked"}: "${
+        input.value || input.name || "unnamed"
+      }"`
+    );
+
+    // Trigger change events
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  } else if (inputType === "range") {
+    const min = parseInt(input.min) || 0;
+    const max = parseInt(input.max) || 100;
+    input.value = faker.number.int({ min, max }).toString();
+    console.log(`🎚️ Range set to: ${input.value} (${min}-${max})`);
+  } else if (inputType === "color") {
+    input.value = faker.internet.color();
+    console.log(`🎨 Color set to: ${input.value}`);
+  } else if (inputType === "time") {
+    const time = faker.date
+      .recent()
+      .toTimeString()
+      .split(" ")[0]
+      .substring(0, 5);
+    input.value = time;
+    console.log(`⏰ Time set to: ${input.value}`);
+  } else if (inputType === "datetime-local") {
+    const datetime = faker.date.recent().toISOString().slice(0, 16);
+    input.value = datetime;
+    console.log(`📅⏰ DateTime set to: ${input.value}`);
+  } else if (inputType === "month") {
+    const month = faker.date.recent().toISOString().slice(0, 7);
+    input.value = month;
+    console.log(`📅 Month set to: ${input.value}`);
+  } else if (inputType === "week") {
+    const date = faker.date.recent();
+    const year = date.getFullYear();
+    const week = Math.ceil(
+      (date.getTime() - new Date(year, 0, 1).getTime()) /
+        (7 * 24 * 60 * 60 * 1000)
+    );
+    const weekStr = `${year}-W${week.toString().padStart(2, "0")}`;
+    input.value = weekStr;
+    console.log(`📅 Week set to: ${input.value}`);
+  } else if (inputType === "search") {
+    input.value = faker.commerce.productName();
+    console.log(`🔍 Search set to: ${input.value}`);
+  } else if (inputType === "url") {
+    input.value = faker.internet.url();
+    console.log(`🔗 URL set to: ${input.value}`);
+  } else if (inputType === "number") {
+    const min = parseInt(input.min) || 1;
+    const max = parseInt(input.max) || 100;
+    input.value = faker.number.int({ min, max }).toString();
+    console.log(`🔢 Number set to: ${input.value} (${min}-${max})`);
+  } else if (tagName === "output") {
+    input.value = faker.number.int({ min: 1, max: 1000 }).toString();
+    console.log(`📊 Output set to: ${input.value}`);
+  } else if (tagName === "textarea") {
+    input.value =
+      "This is a sample text for testing purposes. It provides meaningful content instead of random Latin text.";
+    console.log(`📝 Textarea set to: ${input.value.substring(0, 50)}...`);
+  } else {
+    // Default handling for text, email, password, tel, etc.
+    input.value = value;
+    console.log(`📄 Default input set to: ${input.value}`);
+  }
+}

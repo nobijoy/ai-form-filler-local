@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Form Test - AI Form Filler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="email"], input[type="tel"], input[type="date"], 
+        input[type="number"], textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        input[type="radio"], input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .radio-group, .checkbox-group {
+            margin: 10px 0;
+        }
+        .radio-group label, .checkbox-group label {
+            font-weight: normal;
+            display: inline;
+            margin-left: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .test-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Comprehensive AI Form Filler Test</h1>
+    
+    <div class="test-info">
+        <h3>🎯 Test Coverage:</h3>
+        <ul>
+            <li>✅ Text inputs (name, email consistency)</li>
+            <li>✅ Select dropdowns</li>
+            <li>✅ Radio buttons (single selection)</li>
+            <li>✅ Checkboxes (multiple selection)</li>
+            <li>✅ Date inputs</li>
+            <li>✅ Number inputs</li>
+            <li>✅ Textarea</li>
+            <li>❌ File uploads (intentionally skipped)</li>
+        </ul>
+    </div>
+
+    <form>
+        <!-- Basic Information -->
+        <div class="form-group">
+            <h3>👤 Personal Information</h3>
+            
+            <label for="full-name">Full Name:</label>
+            <input type="text" id="full-name" name="full-name" placeholder="Enter your full name">
+            
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" name="email" placeholder="Should match your name">
+            
+            <label for="phone">Phone Number:</label>
+            <input type="tel" id="phone" name="phone" placeholder="Your phone number">
+            
+            <label for="birthdate">Date of Birth:</label>
+            <input type="date" id="birthdate" name="birthdate">
+        </div>
+
+        <!-- Gender Selection (Radio) -->
+        <div class="form-group">
+            <h3>🔘 Gender (Radio Buttons)</h3>
+            <div class="radio-group">
+                <input type="radio" id="male" name="gender" value="male">
+                <label for="male">Male</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="female" name="gender" value="female">
+                <label for="female">Female</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="other" name="gender" value="other">
+                <label for="other">Other</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="prefer-not-say" name="gender" value="prefer-not-to-say">
+                <label for="prefer-not-say">Prefer not to say</label>
+            </div>
+        </div>
+
+        <!-- Country Selection (Dropdown) -->
+        <div class="form-group">
+            <h3>🌍 Location</h3>
+            <label for="country">Country:</label>
+            <select id="country" name="country">
+                <option value="">Select a country</option>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="UK">United Kingdom</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="JP">Japan</option>
+                <option value="AU">Australia</option>
+                <option value="IN">India</option>
+            </select>
+        </div>
+
+        <!-- Interests (Checkboxes) -->
+        <div class="form-group">
+            <h3>☑️ Interests (Checkboxes)</h3>
+            <div class="checkbox-group">
+                <input type="checkbox" id="tech" name="interests" value="technology">
+                <label for="tech">Technology</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="sports" name="interests" value="sports">
+                <label for="sports">Sports</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="music" name="interests" value="music">
+                <label for="music">Music</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="travel" name="interests" value="travel">
+                <label for="travel">Travel</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="reading" name="interests" value="reading">
+                <label for="reading">Reading</label>
+            </div>
+        </div>
+
+        <!-- Experience Level (Radio) -->
+        <div class="form-group">
+            <h3>📊 Experience Level</h3>
+            <div class="radio-group">
+                <input type="radio" id="beginner" name="experience" value="beginner">
+                <label for="beginner">Beginner (0-2 years)</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="intermediate" name="experience" value="intermediate">
+                <label for="intermediate">Intermediate (3-5 years)</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="advanced" name="experience" value="advanced">
+                <label for="advanced">Advanced (6-10 years)</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="expert" name="experience" value="expert">
+                <label for="expert">Expert (10+ years)</label>
+            </div>
+        </div>
+
+        <!-- Additional Fields -->
+        <div class="form-group">
+            <h3>📝 Additional Information</h3>
+            
+            <label for="company">Company Name:</label>
+            <input type="text" id="company" name="company" placeholder="Your workplace">
+            
+            <label for="salary">Expected Salary:</label>
+            <input type="number" id="salary" name="salary" placeholder="Annual salary" min="0" max="1000000">
+            
+            <label for="comments">Comments:</label>
+            <textarea id="comments" name="comments" rows="4" placeholder="Any additional information"></textarea>
+        </div>
+
+        <!-- Newsletter Subscription (Checkbox) -->
+        <div class="form-group">
+            <h3>📧 Preferences</h3>
+            <div class="checkbox-group">
+                <input type="checkbox" id="newsletter" name="newsletter" value="yes">
+                <label for="newsletter">Subscribe to newsletter</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="terms" name="terms" value="accepted">
+                <label for="terms">I agree to the terms and conditions</label>
+            </div>
+        </div>
+
+        <!-- File Upload (Should be skipped) -->
+        <div class="form-group">
+            <h3>📎 File Upload (Should be skipped)</h3>
+            <label for="resume">Upload Resume:</label>
+            <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx">
+            <small>This field should NOT be filled by the extension</small>
+        </div>
+
+        <button type="submit">Submit Form</button>
+    </form>
+
+    <div class="test-info">
+        <h3>🔍 Expected Results:</h3>
+        <ul>
+            <li><strong>Name & Email:</strong> Should be consistent (e.g., "John Doe" → "john.doe@example.com")</li>
+            <li><strong>Radio buttons:</strong> One option selected per group</li>
+            <li><strong>Checkboxes:</strong> Some randomly checked (~70% chance each)</li>
+            <li><strong>Dropdowns:</strong> Random valid option selected</li>
+            <li><strong>File upload:</strong> Should remain empty</li>
+        </ul>
+    </div>
+</body>
+</html>
