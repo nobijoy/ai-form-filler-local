@@ -79,6 +79,9 @@ async function fillForms(model) {
           const contextText = getFieldContext(input, textToAnalyze);
           console.log(`🤖 Sending to AI: "${contextText}"`);
 
+          // Detect expected field type ahead of AI to reconcile conflicts (e.g., work -> company, city -> location)
+          const expectedType = detectFieldType(textToAnalyze, input);
+
           const aiResponse = await chrome.runtime.sendMessage({
             action: "performNER",
             text: contextText,
@@ -94,7 +97,7 @@ async function fillForms(model) {
               entities,
               lang,
               textToAnalyze,
-              null,
+              expectedType,
               generatedUserData
             );
             if (aiFilled) {
@@ -296,6 +299,29 @@ function fillField(
   analysis = null,
   userData = {}
 ) {
+  // Map expected field types to compatible NER entity labels
+  const compatibleEntitiesByType = {
+    COMPANY: new Set(["ORG", "B-ORG", "I-ORG", "ORGANIZATION", "B-ORGANIZATION", "I-ORGANIZATION"]),
+    ORGANIZATION: new Set(["ORG", "B-ORG", "I-ORG", "ORGANIZATION", "B-ORGANIZATION", "I-ORGANIZATION"]),
+    CITY: new Set(["LOC", "B-LOC", "I-LOC", "LOCATION", "B-LOCATION", "I-LOCATION", "GPE", "B-GPE", "I-GPE"]),
+    LOCATION: new Set(["LOC", "B-LOC", "I-LOC", "LOCATION", "B-LOCATION", "I-LOCATION", "GPE", "B-GPE", "I-GPE"]),
+    FULL_NAME: new Set(["PER", "B-PER", "I-PER", "PERSON", "B-PERSON", "I-PERSON"]),
+    PERSON_NAME: new Set(["PER", "B-PER", "I-PER", "PERSON", "B-PERSON", "I-PERSON"]),
+    NAME: new Set(["PER", "B-PER", "I-PER", "PERSON", "B-PERSON", "I-PERSON"]),
+    FIRST_NAME: new Set(["PER", "B-PER", "I-PER", "PERSON", "B-PERSON", "I-PERSON"]),
+    LAST_NAME: new Set(["PER", "B-PER", "I-PER", "PERSON", "B-PERSON", "I-PERSON"]),
+    EMAIL: new Set(["EMAIL"]),
+    PHONE: new Set(["PHONE"]),
+    DATE: new Set(["DATE", "B-DATE", "I-DATE", "TIME", "B-TIME", "I-TIME"]),
+    NUMBER: new Set(["NUMBER", "PERCENT", "MONEY"]),
+  };
+
+  function isEntityCompatible(expectedType, entityLabel) {
+    if (!expectedType) return true; // no constraint
+    const set = compatibleEntitiesByType[expectedType];
+    if (!set) return true; // unknown type → allow
+    return set.has(entityLabel) || set.has(entityLabel.toUpperCase());
+  }
   const entityMap = {
     // BIO tagging format (B- = Beginning, I- = Inside)
     "B-PER": () => generatePersonName(userData),
@@ -331,7 +357,7 @@ function fillField(
     GPE: () => faker.location.city(),
     DATE: () => faker.date.future().toISOString().split("T")[0],
     TIME: () => faker.date.future().toISOString().split("T")[0],
-    PHONE: () => faker.phone.number(),
+    PHONE: () => generatePhoneNumber(input),
     EMAIL: () => generateEmail(userData),
     MONEY: () => faker.finance.amount(),
     PERCENT: () => faker.number.int({ min: 1, max: 100 }) + "%",
@@ -406,7 +432,12 @@ function fillField(
       (a, b) => (b.score || 0) - (a.score || 0)
     );
 
-    for (const entity of sortedEntities) {
+    // If we have an expected analysis/type, filter to compatible entities first
+    const candidateEntities = analysis
+      ? sortedEntities.filter((e) => isEntityCompatible(analysis, e.entity))
+      : sortedEntities;
+
+    for (const entity of candidateEntities) {
       console.log(
         `🤖 Checking entity: ${entity.entity} (score: ${entity.score})`
       );
@@ -487,7 +518,7 @@ function fillField(
     `🔄 Smart Fallback: Analyzing "${textToAnalyze}" with pattern matching`
   );
 
-  const fieldType = detectFieldType(textToAnalyze, input);
+  const fieldType = analysis || detectFieldType(textToAnalyze, input);
   if (fieldType) {
     console.log(`🎯 Pattern detected: ${fieldType}`);
 
@@ -514,7 +545,7 @@ function fillField(
         value = faker.company.name();
         break;
       case "PHONE":
-        value = faker.phone.number();
+        value = generatePhoneNumber(input);
         break;
       case "CITY":
       case "LOCATION":
@@ -639,7 +670,7 @@ function detectFieldType(text, input) {
   // Phone detection
   if (
     inputType === "tel" ||
-    /\b(phone|tel|telephone|mobile|cell)\b/.test(allText)
+    /\b(phone|tel|telephone|mobile|cell|contact\s*number)\b/.test(allText)
   ) {
     return "PHONE";
   }
@@ -764,6 +795,39 @@ function generateEmail(userData) {
     `📧 Generated email: "${email}" for user: ${userData.firstName} ${userData.lastName}`
   );
   return email;
+}
+
+// Helper to generate phone numbers respecting existing formatting patterns
+function generatePhoneNumber(input) {
+  const placeholder = (input.placeholder || "").trim();
+  const nameId = `${input.name || ""} ${input.id || ""}`.toLowerCase();
+  const label = findLabelForInput(input)?.innerText?.trim() || "";
+  const context = `${label} ${placeholder} ${nameId}`.toLowerCase();
+
+  // Hints for extension and digit count
+  const pattern = placeholder || label;
+  const hintedDigits = (pattern.match(/\d/g) || []).length;
+  const hasExplicitExtDigits = /(?:x|ext\.?)[^\d]*(\d{1,5})/i.exec(pattern);
+  const wantsExtension = /\b(ext|x|extension)\b/.test(context) || !!hasExplicitExtDigits;
+
+  // Compute total digits: prefer digits seen in the pattern; else respect input.maxLength; else default to 10
+  let totalDigits = hintedDigits >= 7 ? hintedDigits : 0;
+  if (!totalDigits && typeof input.maxLength === "number" && input.maxLength > 0) {
+    totalDigits = input.maxLength;
+  }
+  if (!totalDigits) totalDigits = 10;
+
+  // If extension is hinted but pattern didn't include ext digits, add 3-5 extra digits
+  if (wantsExtension && (!hasExplicitExtDigits || !hasExplicitExtDigits[1])) {
+    totalDigits += faker.number.int({ min: 3, max: 5 });
+  }
+
+  // Produce a digits-only string of the desired length
+  let digits = "";
+  for (let i = 0; i < totalDigits; i++) {
+    digits += faker.number.int({ min: 0, max: 9 }).toString();
+  }
+  return digits;
 }
 
 // Comprehensive input type handler

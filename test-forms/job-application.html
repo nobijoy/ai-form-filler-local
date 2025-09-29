@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Form - Software Engineer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+        .form-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .required {
+            color: red;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        .checkbox-group, .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .checkbox-group label, .radio-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        .checkbox-group input, .radio-group input {
+            width: auto;
+            margin-right: 8px;
+        }
+        .submit-btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .submit-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Job Application Form</h1>
+        <p><strong>Position:</strong> Senior Software Engineer</p>
+        <p><strong>Company:</strong> TechCorp Solutions</p>
+        
+        <form>
+            <!-- Personal Information -->
+            <div class="form-section">
+                <h3>Personal Information</h3>
+                
+                <div class="form-group">
+                    <label for="full-name">Full Name <span class="required">*</span></label>
+                    <input type="text" id="full-name" name="full-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">Phone Number <span class="required">*</span></label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="address">Home Address</label>
+                    <input type="text" id="address" name="address" placeholder="Street address">
+                </div>
+                
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city">
+                </div>
+                
+                <div class="form-group">
+                    <label for="linkedin">LinkedIn Profile URL</label>
+                    <input type="url" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/yourprofile">
+                </div>
+                
+                <div class="form-group">
+                    <label for="portfolio">Portfolio Website</label>
+                    <input type="url" id="portfolio" name="portfolio" placeholder="https://yourportfolio.com">
+                </div>
+            </div>
+
+            <!-- Professional Experience -->
+            <div class="form-section">
+                <h3>Professional Experience</h3>
+                
+                <div class="form-group">
+                    <label for="current-company">Current/Most Recent Company</label>
+                    <input type="text" id="current-company" name="current-company">
+                </div>
+                
+                <div class="form-group">
+                    <label for="current-position">Current/Most Recent Job Title</label>
+                    <input type="text" id="current-position" name="current-position">
+                </div>
+                
+                <div class="form-group">
+                    <label for="years-experience">Years of Experience</label>
+                    <input type="number" id="years-experience" name="years-experience" min="0" max="50">
+                </div>
+                
+                <div class="form-group">
+                    <label for="current-supervisor">Who is your current supervisor?</label>
+                    <input type="text" id="current-supervisor" name="current-supervisor">
+                </div>
+                
+                <div class="form-group">
+                    <label for="salary-expectation">Salary Expectation (USD)</label>
+                    <input type="number" id="salary-expectation" name="salary-expectation" min="30000" max="500000" placeholder="e.g., 120000">
+                </div>
+                
+                <div class="form-group">
+                    <label>Experience Level</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="experience-level" value="junior"> Junior (0-2 years)</label>
+                        <label><input type="radio" name="experience-level" value="mid"> Mid-level (3-5 years)</label>
+                        <label><input type="radio" name="experience-level" value="senior"> Senior (6-10 years)</label>
+                        <label><input type="radio" name="experience-level" value="lead"> Lead/Principal (10+ years)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills & Technologies -->
+            <div class="form-section">
+                <h3>Skills & Technologies</h3>
+                
+                <div class="form-group">
+                    <label>Programming Languages (check all that apply)</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="languages" value="javascript"> JavaScript</label>
+                        <label><input type="checkbox" name="languages" value="python"> Python</label>
+                        <label><input type="checkbox" name="languages" value="java"> Java</label>
+                        <label><input type="checkbox" name="languages" value="csharp"> C#</label>
+                        <label><input type="checkbox" name="languages" value="cpp"> C++</label>
+                        <label><input type="checkbox" name="languages" value="go"> Go</label>
+                        <label><input type="checkbox" name="languages" value="rust"> Rust</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Frameworks & Libraries (check all that apply)</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="frameworks" value="react"> React</label>
+                        <label><input type="checkbox" name="frameworks" value="angular"> Angular</label>
+                        <label><input type="checkbox" name="frameworks" value="vue"> Vue.js</label>
+                        <label><input type="checkbox" name="frameworks" value="nodejs"> Node.js</label>
+                        <label><input type="checkbox" name="frameworks" value="django"> Django</label>
+                        <label><input type="checkbox" name="frameworks" value="spring"> Spring Boot</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="primary-skill">What is your primary technical skill?</label>
+                    <select id="primary-skill" name="primary-skill">
+                        <option value="">Select your primary skill</option>
+                        <option value="frontend">Frontend Development</option>
+                        <option value="backend">Backend Development</option>
+                        <option value="fullstack">Full-Stack Development</option>
+                        <option value="mobile">Mobile Development</option>
+                        <option value="devops">DevOps/Infrastructure</option>
+                        <option value="data">Data Engineering</option>
+                        <option value="ml">Machine Learning</option>
+                        <option value="security">Security</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Availability & Preferences -->
+            <div class="form-section">
+                <h3>Availability & Preferences</h3>
+                
+                <div class="form-group">
+                    <label for="start-date">Earliest Start Date</label>
+                    <input type="date" id="start-date" name="start-date">
+                </div>
+                
+                <div class="form-group">
+                    <label>Work Arrangement Preference</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="work-arrangement" value="remote"> Remote</label>
+                        <label><input type="radio" name="work-arrangement" value="hybrid"> Hybrid</label>
+                        <label><input type="radio" name="work-arrangement" value="onsite"> On-site</label>
+                        <label><input type="radio" name="work-arrangement" value="flexible"> Flexible</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Benefits Important to You (check all that apply)</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="benefits" value="health"> Health Insurance</label>
+                        <label><input type="checkbox" name="benefits" value="dental"> Dental Insurance</label>
+                        <label><input type="checkbox" name="benefits" value="retirement"> 401(k) Matching</label>
+                        <label><input type="checkbox" name="benefits" value="pto"> Paid Time Off</label>
+                        <label><input type="checkbox" name="benefits" value="learning"> Learning & Development Budget</label>
+                        <label><input type="checkbox" name="benefits" value="equity"> Stock Options/Equity</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="relocation">Are you willing to relocate?</label>
+                    <select id="relocation" name="relocation">
+                        <option value="">Please select</option>
+                        <option value="yes">Yes, anywhere</option>
+                        <option value="limited">Yes, within the country</option>
+                        <option value="no">No, current location only</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="form-section">
+                <h3>Additional Information</h3>
+                
+                <div class="form-group">
+                    <label for="cover-letter">Why are you interested in this position?</label>
+                    <textarea id="cover-letter" name="cover-letter" rows="4" placeholder="Tell us why you'd be a great fit for this role..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="achievements">Notable achievements or projects</label>
+                    <textarea id="achievements" name="achievements" rows="3" placeholder="Describe your most significant professional achievements..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="references">Professional references (Name and contact)</label>
+                    <textarea id="references" name="references" rows="3" placeholder="Please provide 2-3 professional references..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="additional-info">Additional comments or information</label>
+                    <textarea id="additional-info" name="additional-info" rows="2" placeholder="Anything else you'd like us to know..."></textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">Submit Application</button>
+        </form>
+    </div>
+</body>
+</html>

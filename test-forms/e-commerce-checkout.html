@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - TechStore Online</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .checkout-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+        }
+        .form-section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .order-summary {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        h2 {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            flex: 1;
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .required {
+            color: #e74c3c;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        .radio-group, .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .radio-group label, .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .radio-group label:hover, .checkbox-group label:hover {
+            background-color: #f8f9fa;
+        }
+        .radio-group input, .checkbox-group input {
+            width: auto;
+            margin-right: 10px;
+        }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .order-total {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+            padding-top: 15px;
+            border-top: 2px solid #007bff;
+        }
+        .submit-btn {
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        .submit-btn:hover {
+            background: #218838;
+        }
+        .security-info {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #155724;
+        }
+        .promo-section {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="checkout-container">
+        <div class="checkout-form">
+            <h1>Checkout</h1>
+            
+            <form>
+                <!-- Customer Information -->
+                <div class="form-section">
+                    <h2>Customer Information</h2>
+                    
+                    <div class="form-group">
+                        <label>Account Status</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="account-type" value="existing"> I have an account</label>
+                            <label><input type="radio" name="account-type" value="guest"> Continue as guest</label>
+                            <label><input type="radio" name="account-type" value="new"> Create new account</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="first-name">First Name <span class="required">*</span></label>
+                            <input type="text" id="first-name" name="first-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="last-name">Last Name <span class="required">*</span></label>
+                            <input type="text" id="last-name" name="last-name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address <span class="required">*</span></label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Phone Number <span class="required">*</span></label>
+                        <input type="tel" id="phone" name="phone" required>
+                    </div>
+                </div>
+
+                <!-- Shipping Address -->
+                <div class="form-section">
+                    <h2>Shipping Address</h2>
+                    
+                    <div class="form-group">
+                        <label for="company">Company (optional)</label>
+                        <input type="text" id="company" name="company">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="address-line1">Address Line 1 <span class="required">*</span></label>
+                        <input type="text" id="address-line1" name="address-line1" placeholder="Street address" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="address-line2">Address Line 2 (optional)</label>
+                        <input type="text" id="address-line2" name="address-line2" placeholder="Apartment, suite, etc.">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="city">City <span class="required">*</span></label>
+                            <input type="text" id="city" name="city" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="state">State <span class="required">*</span></label>
+                            <select id="state" name="state" required>
+                                <option value="">Select State</option>
+                                <option value="AL">Alabama</option>
+                                <option value="CA">California</option>
+                                <option value="FL">Florida</option>
+                                <option value="IL">Illinois</option>
+                                <option value="NY">New York</option>
+                                <option value="TX">Texas</option>
+                                <option value="WA">Washington</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="zip">ZIP Code <span class="required">*</span></label>
+                            <input type="text" id="zip" name="zip" pattern="[0-9]{5}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="country">Country <span class="required">*</span></label>
+                        <select id="country" name="country" required>
+                            <option value="US">United States</option>
+                            <option value="CA">Canada</option>
+                            <option value="MX">Mexico</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Shipping Options -->
+                <div class="form-section">
+                    <h2>Shipping Options</h2>
+                    
+                    <div class="form-group">
+                        <label>Delivery Speed</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="shipping-speed" value="standard">
+                                <div>
+                                    <strong>Standard Shipping (5-7 business days)</strong><br>
+                                    <span style="color: #28a745;">FREE</span>
+                                </div>
+                            </label>
+                            <label>
+                                <input type="radio" name="shipping-speed" value="expedited">
+                                <div>
+                                    <strong>Expedited Shipping (2-3 business days)</strong><br>
+                                    <span style="color: #007bff;">$9.99</span>
+                                </div>
+                            </label>
+                            <label>
+                                <input type="radio" name="shipping-speed" value="overnight">
+                                <div>
+                                    <strong>Overnight Shipping (1 business day)</strong><br>
+                                    <span style="color: #dc3545;">$24.99</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Delivery Preferences (check all that apply)</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="delivery-options" value="signature"> Require signature</label>
+                            <label><input type="checkbox" name="delivery-options" value="weekend"> Weekend delivery OK</label>
+                            <label><input type="checkbox" name="delivery-options" value="leave-door"> Leave at door if not home</label>
+                            <label><input type="checkbox" name="delivery-options" value="text-updates"> Send text updates</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="delivery-instructions">Special Delivery Instructions</label>
+                        <textarea id="delivery-instructions" name="delivery-instructions" rows="2" placeholder="Gate code, building entrance, etc."></textarea>
+                    </div>
+                </div>
+
+                <!-- Billing Information -->
+                <div class="form-section">
+                    <h2>Billing Information</h2>
+                    
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="billing-same" value="yes" checked> Billing address same as shipping</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Payment Method</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="payment-method" value="credit-card"> Credit/Debit Card</label>
+                            <label><input type="radio" name="payment-method" value="paypal"> PayPal</label>
+                            <label><input type="radio" name="payment-method" value="apple-pay"> Apple Pay</label>
+                            <label><input type="radio" name="payment-method" value="google-pay"> Google Pay</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="card-number">Card Number <span class="required">*</span></label>
+                        <input type="text" id="card-number" name="card-number" placeholder="1234 5678 9012 3456" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expiry-month">Expiry Month <span class="required">*</span></label>
+                            <select id="expiry-month" name="expiry-month" required>
+                                <option value="">Month</option>
+                                <option value="01">01 - January</option>
+                                <option value="02">02 - February</option>
+                                <option value="03">03 - March</option>
+                                <option value="04">04 - April</option>
+                                <option value="05">05 - May</option>
+                                <option value="06">06 - June</option>
+                                <option value="07">07 - July</option>
+                                <option value="08">08 - August</option>
+                                <option value="09">09 - September</option>
+                                <option value="10">10 - October</option>
+                                <option value="11">11 - November</option>
+                                <option value="12">12 - December</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="expiry-year">Expiry Year <span class="required">*</span></label>
+                            <select id="expiry-year" name="expiry-year" required>
+                                <option value="">Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="cvv">CVV <span class="required">*</span></label>
+                            <input type="text" id="cvv" name="cvv" placeholder="123" maxlength="4" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="cardholder-name">Cardholder Name <span class="required">*</span></label>
+                        <input type="text" id="cardholder-name" name="cardholder-name" required>
+                    </div>
+                </div>
+
+                <!-- Promo Code -->
+                <div class="form-section">
+                    <div class="promo-section">
+                        <h3>Promo Code</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="promo-code">Enter promo code</label>
+                                <input type="text" id="promo-code" name="promo-code" placeholder="SAVE10">
+                            </div>
+                            <button type="button" style="padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Marketing Preferences -->
+                <div class="form-section">
+                    <h2>Marketing Preferences</h2>
+                    
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="marketing" value="email-offers"> Email me about special offers and new products</label>
+                            <label><input type="checkbox" name="marketing" value="sms-offers"> Send SMS notifications about deals</label>
+                            <label><input type="checkbox" name="marketing" value="newsletter"> Subscribe to weekly newsletter</label>
+                            <label><input type="checkbox" name="marketing" value="partner-offers"> Receive offers from our partners</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Review -->
+                <div class="form-section">
+                    <h2>Order Review</h2>
+                    
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="terms" value="accepted" required> I agree to the Terms of Service and Privacy Policy <span class="required">*</span></label>
+                            <label><input type="checkbox" name="age-verification" value="confirmed" required> I confirm I am 18 years or older <span class="required">*</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="security-info">
+                        🔒 Your payment information is encrypted and secure. We never store your credit card details.
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Complete Order</button>
+            </form>
+        </div>
+
+        <!-- Order Summary Sidebar -->
+        <div class="order-summary">
+            <h3>Order Summary</h3>
+            
+            <div class="order-item">
+                <div>
+                    <strong>MacBook Pro 16"</strong><br>
+                    <small>Space Gray, 512GB</small>
+                </div>
+                <div>$2,399.00</div>
+            </div>
+            
+            <div class="order-item">
+                <div>
+                    <strong>Magic Mouse</strong><br>
+                    <small>White</small>
+                </div>
+                <div>$79.00</div>
+            </div>
+            
+            <div class="order-item">
+                <div>
+                    <strong>USB-C Cable</strong><br>
+                    <small>2 meters</small>
+                </div>
+                <div>$19.00</div>
+            </div>
+            
+            <hr>
+            
+            <div class="order-item">
+                <div>Subtotal:</div>
+                <div>$2,497.00</div>
+            </div>
+            
+            <div class="order-item">
+                <div>Shipping:</div>
+                <div>FREE</div>
+            </div>
+            
+            <div class="order-item">
+                <div>Tax:</div>
+                <div>$199.76</div>
+            </div>
+            
+            <div class="order-total">
+                <div class="order-item">
+                    <div>Total:</div>
+                    <div>$2,696.76</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 4px; text-align: center;">
+                <strong>🚚 Free shipping on orders over $50!</strong>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
