@@ -82,6 +82,7 @@ async function fillForms(model) {
           // Detect expected field type ahead of AI to reconcile conflicts (e.g., work -> company, city -> location)
           const expectedType = detectFieldType(textToAnalyze, input);
 
+          // Send message to popup script where AI models are loaded
           const aiResponse = await chrome.runtime.sendMessage({
             action: "performNER",
             text: contextText,
@@ -90,7 +91,12 @@ async function fillForms(model) {
 
           if (aiResponse && aiResponse.success) {
             const entities = aiResponse.entities;
+            const modelUsed = aiResponse.modelUsed || 'unknown';
+            const modelStatus = aiResponse.modelStatus || 'unknown';
+            
             console.log(`🤖 AI Response for "${textToAnalyze}":`, entities);
+            console.log(`🤖 Model Used: ${modelUsed}`);
+            console.log(`🤖 Model Status: ${modelStatus}`);
 
             const aiFilled = fillField(
               input,
@@ -111,9 +117,11 @@ async function fillForms(model) {
                   .slice(0, 3)
                   .map((e) => `${e.entity}(${Math.round(e.score * 100)}%)`)
                   .join(", ");
+                console.log(`✅ AI MODEL USED: ${modelUsed} (${modelStatus}) - Entities: ${topEntities}`);
               } else {
                 method = "fallback";
-                topEntities = "direct-handling";
+                topEntities = "no-entities-from-ai";
+                console.log(`⚠️ AI MODEL RETURNED NO ENTITIES: ${modelUsed} (${modelStatus})`);
               }
 
               if (input.type === "radio") {

@@ -1,86 +1,253 @@
-// This service worker is required by Manifest V3.
-// Handle NER requests from content scripts
+// background.js - Manifest V3 Service Worker
+// Handle NER requests from content scripts using AI models
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[background.js] AI Form Filler extension installed.');
+import { pipeline, AutoTokenizer, AutoModelForTokenClassification, env } from '@xenova/transformers';
+env.debug = true;
+
+console.log('[background.js] Transformers.js imported successfully');
+
+// Configure transformers.js for Chrome extension environment
+env.remoteModels = true;
+env.allowRemoteModels = true;
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+env.HF_HUB_URL = "https://huggingface.co";
+env.HF_HUB_CACHE = null;
+
+// Additional configuration for better browser compatibility
+env.allowRemoteModels = true;
+env.remotePath = "https://huggingface.co/";
+env.remoteURL = "https://huggingface.co/";
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+env.useCustomCache = false;
+
+// Force CPU-only execution to avoid WASM issues
+env.backends.onnx.cpu = true;
+// Ensure WASM config is an object (not a boolean)
+if (!env.backends.onnx.wasm || typeof env.backends.onnx.wasm !== 'object') {
+    env.backends.onnx.wasm = {};
+}
+
+// Tweak WASM-related features safely on the object
+// Leave wasmPaths undefined to allow auto-resolution
+env.backends.onnx.wasm.numThreads = 1;
+env.backends.onnx.wasm.simd = false;
+env.backends.onnx.wasm.proxy = false;
+
+// Use default execution providers (don't force), to avoid 'no available backend found'
+
+// Add custom fetch function to handle corrupted JSON responses
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url, options) => {
+    try {
+        const response = await originalFetch(url, options);
+        
+        // If it's a JSON response, check for null bytes
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            const text = await response.text();
+            
+            // Check for null bytes or corrupted content
+            if (text.includes('\x00') || text.trim() === '' || !text.startsWith('{') && !text.startsWith('[')) {
+                console.warn(`[background.js] Detected corrupted JSON response from ${url}, retrying...`);
+                // Retry the request
+                return originalFetch(url, { ...options, cache: 'no-cache' });
+            }
+            
+            // Create a new response with the cleaned text
+            return new Response(text, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers
+            });
+        }
+        
+        return response;
+    } catch (error) {
+        console.error(`[background.js] Fetch error for ${url}:`, error);
+        throw error;
+    }
+};
+
+console.log('[background.js] Transformers.js environment configured');
+console.log('[background.js] Backend configuration:', {
+    cpu: env.backends.onnx.cpu,
+    wasm: env.backends.onnx.wasm,
+    executionProviders: env.backends.onnx.executionProviders,
+    wasmPaths: env.backends.onnx.wasm.wasmPaths
 });
 
-// Handle messages from content scripts
+console.log('[background.js] AI Form Filler extension installed.');
+
+// --- Constants ---
+const DEFAULT_MODEL = 'Xenova/bert-base-NER';
+
+// --- AI Model State ---
+let lastModel = null;
+let lastPipeline = null;
+let modelLoadStatus = 'not_loaded'; // 'not_loaded', 'loading', 'loaded', 'failed'
+let downloadProgress = 0; // 0-100 percentage
+let lastLoggedProgress = -1;
+let progressCallback = null;
+
+console.log("[background.js] Service worker loaded");
+
+// --- Helper: Load pipeline with retry logic ---
+async function getPipeline(model, progress_callback = null, retryCount = 0) {
+    const targetModel = DEFAULT_MODEL;
+    if (targetModel === lastModel && lastPipeline) {
+        return lastPipeline;
+    }
+
+    lastModel = targetModel;
+    const maxRetries = 2;
+
+    try {
+        modelLoadStatus = 'loading';
+        downloadProgress = 0;
+        console.log(`[background.js] 🤖 LOADING AI MODEL: ${targetModel} (attempt ${retryCount + 1}/${maxRetries + 1})`);
+        console.log(`[background.js] 📊 Model Status: ${modelLoadStatus}`);
+
+        // Try different approaches based on the model
+        try {
+            // Single path: token-classification for DEFAULT_MODEL
+            console.log('[background.js] Loading token-classification pipeline...');
+            lastPipeline = await pipeline('token-classification', targetModel, {
+                progress_callback: (progress) => {
+                    if (progress && typeof progress.progress === 'number') {
+                        const pct = Math.min(100, Math.max(0, Math.round(progress.progress * 100)));
+                        downloadProgress = pct;
+                        if (pct !== lastLoggedProgress) {
+                            lastLoggedProgress = pct;
+                            console.log(`[background.js] 📥 Download Progress: ${pct}%`);
+                            if (progressCallback) progressCallback(pct);
+                        }
+                    }
+                }
+            });
+        } catch (pipelineError) {
+            console.log('[background.js] Pipeline approach failed, trying manual loading...');
+            
+            // Alternative approach: Load tokenizer and model separately
+            const tokenizer = await AutoTokenizer.from_pretrained(targetModel);
+            const modelObj = await AutoModelForTokenClassification.from_pretrained(targetModel);
+            lastPipeline = await pipeline('token-classification', modelObj, tokenizer, {
+                progress_callback: (progress) => {
+                    if (progress && typeof progress.progress === 'number') {
+                        const pct = Math.min(100, Math.max(0, Math.round(progress.progress * 100)));
+                        downloadProgress = pct;
+                        if (pct !== lastLoggedProgress) {
+                            lastLoggedProgress = pct;
+                            console.log(`[background.js] 📥 Download Progress: ${pct}%`);
+                            if (progressCallback) progressCallback(pct);
+                        }
+                    }
+                }
+            });
+        }
+
+        modelLoadStatus = 'loaded';
+        downloadProgress = 100;
+        lastLoggedProgress = 100;
+        console.log('[background.js] ✅ AI MODEL LOADED SUCCESSFULLY:', model);
+        return lastPipeline;
+
+    } catch (error) {
+        console.error('[background.js] ❌ FAILED TO LOAD AI MODEL (attempt ${retryCount + 1}):', error);
+        console.error('[background.js] Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
+        
+        // Check if it's a JSON parsing error or network issue
+        const isRetryableError = error.message.includes('JSON') || 
+                                error.message.includes('Unexpected token') ||
+                                error.message.includes('fetch') ||
+                                error.message.includes('network') ||
+                                error.message.includes('CORS');
+        
+        if (isRetryableError && retryCount < maxRetries) {
+            console.log(`[background.js] 🔄 Retrying model load in 2 seconds... (${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return getPipeline(targetModel, progress_callback, retryCount + 1);
+        }
+        
+        if (isRetryableError) {
+            console.error('[background.js] JSON parsing error detected - likely CORS or network issue');
+            modelLoadStatus = 'failed';
+            throw new Error(`Network/CORS error: Unable to fetch model files from Hugging Face after ${maxRetries + 1} attempts. Please check your internet connection and try again.`);
+        }
+        
+        modelLoadStatus = 'failed';
+        throw new Error(`AI model loading failed: ${error.message}`);
+    }
+}
+
+
+// --- Handle messages from content scripts ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'performNER') {
-    console.log('[background.js] Received NER request:', message.text);
-    
-    // For now, return a simple fallback response
-    // In a real implementation, we'd need to load the AI model here
-    // or communicate with the popup (which is complex)
-    
-    // Enhanced entity detection based on keywords and field types
-    const text = message.text.toLowerCase();
-    const entities = [];
-    
-    // Check for specific field types first
-    if (text.includes('email')) {
-      entities.push({ entity: 'EMAIL', score: 0.9, word: 'email' });
-    } else if (text.includes('password')) {
-      entities.push({ entity: 'PASSWORD', score: 0.9, word: 'password' });
-    } else if (text.includes('phone') || text.includes('mobile') || text.includes('tel')) {
-      entities.push({ entity: 'PHONE', score: 0.9, word: 'phone' });
-    } else if (text.includes('date') || text.includes('birth')) {
-      entities.push({ entity: 'DATE', score: 0.9, word: 'date' });
-    } else if (text.includes('country')) {
-      entities.push({ entity: 'LOCATION', score: 0.9, word: 'country' });
-    } else if (text.includes('quantity') || text.includes('number') || text.includes('amount') || text.includes('range')) {
-      entities.push({ entity: 'NUMBER', score: 0.9, word: 'number' });
-    } else if (text.includes('comment') || text.includes('description') || text.includes('note') || text.includes('text')) {
-      entities.push({ entity: 'TEXT', score: 0.9, word: 'text' });
-    } else if (text.includes('search')) {
-      entities.push({ entity: 'SEARCH', score: 0.9, word: 'search' });
-    } else if (text.includes('url') || text.includes('website') || text.includes('link')) {
-      entities.push({ entity: 'URL', score: 0.9, word: 'url' });
-    } else if (text.includes('color') || text.includes('colour')) {
-      entities.push({ entity: 'COLOR', score: 0.9, word: 'color' });
-    } else if (text.includes('time')) {
-      entities.push({ entity: 'TIME', score: 0.9, word: 'time' });
-    } else if (text.includes('datetime') || text.includes('date time')) {
-      entities.push({ entity: 'DATETIME', score: 0.9, word: 'datetime' });
-    } else if (text.includes('month')) {
-      entities.push({ entity: 'MONTH', score: 0.9, word: 'month' });
-    } else if (text.includes('week')) {
-      entities.push({ entity: 'WEEK', score: 0.9, word: 'week' });
-    } else if (text.includes('priority') || text.includes('importance') || text.includes('level')) {
-      entities.push({ entity: 'TEXT', score: 0.9, word: 'priority' });
-    } else if (text.includes('name') && !text.includes('file')) {
-      entities.push({ entity: 'PERSON', score: 0.9, word: 'name' });
+    if (message.action === 'performNER') {
+        (async () => {
+            try {
+                if (!lastPipeline) {
+                    await getPipeline(DEFAULT_MODEL);
+                }
+
+                const entities = await lastPipeline(message.text);
+                const validEntities = entities.filter(e => e.score > 0.5);
+
+                sendResponse({ success: true, entities: validEntities, modelUsed: lastModel, modelStatus: modelLoadStatus });
+            } catch (error) {
+                sendResponse({ success: false, error: error.message, modelStatus: modelLoadStatus });
+            }
+        })();
+        return true; // Keep async channel open
     }
-    // Person-related keywords
-    else if (text.includes('manager') || text.includes('boss') || text.includes('supervisor') || 
-        text.includes('colleague') || text.includes('coworker') || text.includes('contact') ||
-        text.includes('person') || text.includes('who') || text.includes('director') ||
-        text.includes('head') || text.includes('physician') || text.includes('doctor') ||
-        text.includes('answer to') || text.includes('report to') || text.includes('point person') ||
-        text.includes('emergency') || text.includes('kin')) {
-      entities.push({ entity: 'PERSON', score: 0.8, word: 'person' });
+
+    if (message.action === 'getModelStatus') {
+        sendResponse({ status: modelLoadStatus, model: lastModel, pipelineReady: !!lastPipeline, progress: downloadProgress });
+        return true;
     }
-    // Organization-related keywords  
-    else if (text.includes('organization') || text.includes('company') || text.includes('work') ||
-        text.includes('client') || text.includes('business') || text.includes('vendor') ||
-        text.includes('supplier') || text.includes('employer') || text.includes('school') ||
-        text.includes('university') || text.includes('institution') || text.includes('affiliated') ||
-        text.includes('account')) {
-      entities.push({ entity: 'ORG', score: 0.8, word: 'organization' });
+
+    if (message.action === 'setProgressCallback') {
+        progressCallback = (progress) => {
+            chrome.runtime.sendMessage({
+                action: 'progressUpdate',
+                progress,
+                status: modelLoadStatus,
+                model: lastModel
+            }).catch(() => {});
+        };
+        sendResponse({ success: true });
+        return true;
     }
-    // Location-related keywords
-    else if (text.includes('city') || text.includes('born') || text.includes('place') ||
-        text.includes('location') || text.includes('where') || text.includes('based') ||
-        text.includes('office') || text.includes('branch') || text.includes('grow up') ||
-        text.includes('grew up') || text.includes('hail') || text.includes('from')) {
-      entities.push({ entity: 'LOC', score: 0.8, word: 'location' });
+
+    if (message.action === 'testModelLoading') {
+        (async () => {
+            try {
+                // Reset model state for fresh test
+                lastModel = null;
+                lastPipeline = null;
+                modelLoadStatus = 'not_loaded';
+                
+                const modelToTest = DEFAULT_MODEL;
+                console.log(`[background.js] Testing model: ${modelToTest}`);
+                
+                await getPipeline(modelToTest);
+                sendResponse({ success: true, message: `Test model loaded successfully: ${modelToTest}` });
+            } catch (error) {
+                console.error('[background.js] Test model loading failed:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
+        return true;
     }
-    
-    console.log('[background.js] Returning entities:', entities);
-    sendResponse({ success: true, entities: entities });
-    return true;
-  }
 });
 
-console.log('[background.js] Service worker started.');
+console.log('[background.js] Service worker started with AI model support.');
+console.log('[background.js] Environment check:', {
+    allowRemoteModels: env.allowRemoteModels,
+    allowLocalModels: env.allowLocalModels,
+    useBrowserCache: env.useBrowserCache
+});
