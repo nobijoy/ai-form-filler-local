@@ -62,6 +62,27 @@ async function fillForms(model) {
         ? label.innerText
         : input.placeholder || input.name || input.id || "";
 
+      // Handle select dropdowns directly without AI
+      if (input.tagName?.toLowerCase() === "select") {
+        const options = Array.from(input.options).filter(
+          (opt) => opt.value && opt.value !== ""
+        );
+        if (options.length > 0) {
+          const randomOption = options[Math.floor(Math.random() * options.length)];
+          input.value = randomOption.value;
+          console.log(
+            `🎯 Selected dropdown option: "${randomOption.text}" (value: "${randomOption.value}") for field: "${textToAnalyze}"`
+          );
+          results.push({
+            field: textToAnalyze,
+            filled_with: `${randomOption.text} (${randomOption.value})`,
+            method: "dropdown-selection",
+            entities: [{ entity: "DROPDOWN_SELECTION", score: 1.0 }],
+          });
+          continue; // Skip AI processing for select elements
+        }
+      }
+
       if (textToAnalyze) {
         console.log(
           `Analyzing field: "${textToAnalyze}" for input:`,
@@ -565,6 +586,9 @@ function fillField(
       case "COUNTRY":
         value = faker.location.country();
         break;
+      case "ZIP_CODE":
+        value = faker.location.zipCode();
+        break;
       case "JOB_TITLE":
         value = faker.person.jobTitle();
         break;
@@ -751,6 +775,9 @@ function detectFieldType(text, input) {
   }
   if (/\b(country|nation|nationality)\b/.test(allText)) {
     return "COUNTRY";
+  }
+  if (/\b(zip|postal|postcode|post\s*code)\b/.test(allText)) {
+    return "ZIP_CODE";
   }
   if (
     /\b(work|office|workplace)\b/.test(allText) ||
