@@ -1015,10 +1015,27 @@ function generateEmail(userData) {
 
   // Generate email based on user's name (lowercase, no spaces)
   const emailName = `${userData.firstName}.${userData.lastName}`.toLowerCase();
-  const domain = faker.internet.domainName();
+  
+  // Use realistic email providers instead of random domains
+  const commonEmailProviders = [
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'icloud.com',
+    'aol.com',
+    'protonmail.com',
+    'live.com',
+    'msn.com',
+    'yandex.com'
+  ];
+  
+  // Pick a random provider from the list
+  const domain = faker.helpers.arrayElement(commonEmailProviders);
   const email = `${emailName}@${domain}`;
+  
   console.log(
-    `📧 Generated email: "${email}" for user: ${userData.firstName} ${userData.lastName}`
+    `📧 Generated realistic email: "${email}" for user: ${userData.firstName} ${userData.lastName}`
   );
   return email;
 }
