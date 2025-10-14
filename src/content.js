@@ -7,25 +7,49 @@ import { franc } from "franc-min";
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "executeFill") {
     const model = message.model; // Get the model from the popup/background script
-    console.log(`🚀 Starting form fill with model: ${model}`);
-    fillForms(model)
-      .then((results) => {
-        console.log(
-          `✅ Form fill completed: ${results.length} fields processed`
-        );
+    let useBasicMode = message.useBasicMode || false; // Check if basic mode is requested
+    
+    console.log(`🚀 Starting form fill with model: ${model}, Basic Mode: ${useBasicMode}`);
+    
+    // Double-check mode from storage to ensure consistency
+    (async () => {
+      try {
+        const storageResult = await chrome.storage.local.get(['currentMode']);
+        const storedMode = storageResult.currentMode;
+        
+        if (storedMode) {
+          const shouldUseBasic = storedMode === 'basic';
+          if (shouldUseBasic !== useBasicMode) {
+            console.log(`🔄 Mode mismatch detected. Message: ${useBasicMode}, Storage: ${shouldUseBasic}. Using storage value.`);
+            useBasicMode = shouldUseBasic;
+          }
+        }
+        
+        console.log(`📋 Final mode decision: Basic Mode = ${useBasicMode}`);
+        
+        const results = await fillForms(model, useBasicMode);
+        console.log(`✅ Form fill completed: ${results.length} fields processed`);
         sendResponse({ success: true, results });
-      })
-      .catch((error) => {
+        
+      } catch (error) {
         console.error("❌ Error filling forms:", error);
         sendResponse({ success: false, error: error.message });
-      });
+      }
+    })();
+    
     return true; // Indicates that the response is sent asynchronously
   }
 });
 
-async function fillForms(model) {
-  // Now takes model as parameter
+async function fillForms(model, useBasicMode = false) {
+  // Now takes model and basic mode parameters
   const results = [];
+  
+  console.log(`📋 Fill mode: ${useBasicMode ? 'BASIC (Pattern Matching Only)' : 'AI + Pattern Matching'}`);
+  
+  if (useBasicMode) {
+    console.log('🔧 BASIC MODE: Skipping all AI calls, using pattern matching only');
+  }
   const inputs = document.querySelectorAll(
     'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="file"]):not([type="image"]), textarea, select, output'
   );
@@ -94,21 +118,58 @@ async function fillForms(model) {
           processedRadioGroups.add(input.name);
         }
 
-        // Use AI to understand the field context
-        try {
-          // Get more context for better AI analysis
-          const contextText = getFieldContext(input, textToAnalyze);
-          console.log(`🤖 Sending to AI: "${contextText}"`);
-
-          // Detect expected field type ahead of AI to reconcile conflicts (e.g., work -> company, city -> location)
+        // Choose processing method based on mode
+        if (useBasicMode) {
+          // BASIC MODE: Skip AI entirely, use pattern matching only
+          console.log(`🔧 BASIC MODE: Using pattern matching for "${textToAnalyze}"`);
+          
           const expectedType = detectFieldType(textToAnalyze, input);
+          const patternFilled = fillFieldWithPatterns(
+            input,
+            textToAnalyze,
+            expectedType,
+            generatedUserData
+          );
+          
+          if (patternFilled) {
+            let displayValue;
+            if (input.type === "radio") {
+              const selectedRadio = document.querySelector(
+                `input[type="radio"][name="${input.name}"]:checked`
+              );
+              displayValue = selectedRadio
+                ? `${selectedRadio.value} (selected)`
+                : "none selected";
+            } else if (input.type === "checkbox") {
+              displayValue = `${input.checked ? "checked" : "unchecked"}`;
+            } else {
+              displayValue = input.value;
+            }
 
-          // Send message to popup script where AI models are loaded
-          const aiResponse = await chrome.runtime.sendMessage({
-            action: "performNER",
-            text: contextText,
-            model: model,
-          });
+            console.log(`✅ BASIC filled: ${textToAnalyze} -> ${displayValue}`);
+            results.push({
+              field: textToAnalyze,
+              filled_with: displayValue,
+              method: "pattern-matching",
+              entities: [{ entity: expectedType || "PATTERN", score: 1.0 }],
+            });
+          }
+        } else {
+          // AI MODE: Use AI + pattern matching fallback
+          try {
+            // Get more context for better AI analysis
+            const contextText = getFieldContext(input, textToAnalyze);
+            console.log(`🤖 Sending to AI: "${contextText}"`);
+
+            // Detect expected field type ahead of AI to reconcile conflicts (e.g., work -> company, city -> location)
+            const expectedType = detectFieldType(textToAnalyze, input);
+
+            // Send message to background script where AI models are loaded
+            const aiResponse = await chrome.runtime.sendMessage({
+              action: "performNER",
+              text: contextText,
+              model: model,
+            });
 
           if (aiResponse && aiResponse.success) {
             const entities = aiResponse.entities;
@@ -190,10 +251,140 @@ async function fillForms(model) {
         } catch (error) {
           console.warn("Error during AI analysis:", error);
         }
+        } // End of AI mode block
       }
     }
   }
   return results;
+}
+
+// Pattern-only filling function for basic mode
+function fillFieldWithPatterns(input, textToAnalyze, expectedType, userData) {
+  console.log(`🔧 Pattern filling: "${textToAnalyze}" (type: ${expectedType})`);
+  
+  let value;
+  switch (expectedType) {
+    case "PERSON_NAME":
+    case "FULL_NAME":
+    case "NAME":
+      value = generatePersonName(userData);
+      break;
+    case "FIRST_NAME":
+      ensureUserData(userData);
+      value = userData.firstName;
+      break;
+    case "LAST_NAME":
+      ensureUserData(userData);
+      value = userData.lastName;
+      break;
+    case "EMAIL":
+      value = generateEmail(userData);
+      break;
+    case "COMPANY":
+    case "ORGANIZATION":
+      value = faker.company.name();
+      break;
+    case "PHONE":
+      value = generatePhoneNumber(input);
+      break;
+    case "CITY":
+    case "LOCATION":
+      value = faker.location.city();
+      break;
+    case "ADDRESS":
+      value = faker.location.streetAddress();
+      break;
+    case "COUNTRY":
+      value = faker.location.country();
+      break;
+    case "ZIP_CODE":
+      value = faker.location.zipCode();
+      break;
+    case "JOB_TITLE":
+      value = faker.person.jobTitle();
+      break;
+    case "SUPERVISOR":
+      value = generatePersonName({}); // Different person for supervisor
+      break;
+    case "PASSWORD":
+      value = faker.internet.password();
+      break;
+    case "URL":
+      value = faker.internet.url();
+      break;
+    case "DATE":
+      value = faker.date.future().toISOString().split("T")[0];
+      break;
+    case "NUMBER":
+      value = faker.number.int({ min: 1, max: 100 }).toString();
+      break;
+    case "TEXT":
+    default:
+      // For text fields, generate appropriate content based on context
+      const lowerContext = textToAnalyze.toLowerCase();
+      if (
+        lowerContext.includes("comment") ||
+        lowerContext.includes("description") ||
+        lowerContext.includes("message") ||
+        lowerContext.includes("note") ||
+        lowerContext.includes("detail")
+      ) {
+        value = "This is a sample comment for testing purposes.";
+      } else if (
+        lowerContext.includes("supervisor") ||
+        lowerContext.includes("manager") ||
+        lowerContext.includes("boss")
+      ) {
+        value = generatePersonName({}); // Different person for supervisor
+      } else if (
+        lowerContext.includes("work") ||
+        lowerContext.includes("company") ||
+        lowerContext.includes("employ")
+      ) {
+        value = faker.company.name();
+      } else if (
+        lowerContext.includes("city") ||
+        lowerContext.includes("from") ||
+        lowerContext.includes("location")
+      ) {
+        value = faker.location.city();
+      } else if (lowerContext.includes("name")) {
+        value = generatePersonName(userData);
+      } else {
+        // Generic fallback - use a person name as it's most commonly needed
+        value = generatePersonName(userData);
+      }
+      break;
+  }
+
+  if (value) {
+    console.log(`🎲 Pattern-generated value: "${value}"`);
+    handleInputType(input, value);
+    
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    
+    console.log(`✅ Pattern filled: ${textToAnalyze} -> ${input.value || input.checked}`);
+    return true;
+  }
+
+  // Final fallback for radio buttons and checkboxes
+  if (input.type === "radio" || input.type === "checkbox") {
+    console.log(`🔄 Final Fallback: Handling ${input.type} directly`);
+    handleInputType(input, null);
+    
+    const displayValue =
+      input.type === "radio"
+        ? (document.querySelector(
+            `input[type="radio"][name="${input.name}"]:checked`
+          )?.value || "none") + " (selected)"
+        : `${input.checked ? "checked" : "unchecked"}`;
+
+    console.log(`✅ Fallback filled: ${textToAnalyze} -> ${displayValue}`);
+    return true;
+  }
+
+  return false;
 }
 
 function findLabelForInput(input) {

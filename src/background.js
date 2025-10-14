@@ -150,6 +150,13 @@ async function getPipeline(model, progress_callback = null, retryCount = 0) {
         downloadProgress = 100;
         lastLoggedProgress = 100;
         console.log('[background.js] ✅ AI MODEL LOADED SUCCESSFULLY:', model);
+        
+        // Notify popup of completion
+        if (progressCallback) {
+            console.log('[background.js] 📤 Sending completion notification to popup');
+            progressCallback(100);
+        }
+        
         return lastPipeline;
 
     } catch (error) {
@@ -176,10 +183,24 @@ async function getPipeline(model, progress_callback = null, retryCount = 0) {
         if (isRetryableError) {
             console.error('[background.js] JSON parsing error detected - likely CORS or network issue');
             modelLoadStatus = 'failed';
+            
+            // Notify popup of network failure
+            if (progressCallback) {
+                console.log('[background.js] 📤 Sending network failure notification to popup');
+                progressCallback(0);
+            }
+            
             throw new Error(`Network/CORS error: Unable to fetch model files from Hugging Face after ${maxRetries + 1} attempts. Please check your internet connection and try again.`);
         }
         
         modelLoadStatus = 'failed';
+        
+        // Notify popup of failure
+        if (progressCallback) {
+            console.log('[background.js] 📤 Sending failure notification to popup');
+            progressCallback(0);
+        }
+        
         throw new Error(`AI model loading failed: ${error.message}`);
     }
 }
@@ -226,13 +247,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'testModelLoading') {
         (async () => {
             try {
-                // Reset model state for fresh test
-                lastModel = null;
-                lastPipeline = null;
-                modelLoadStatus = 'not_loaded';
+                // Only reset if model is not already loaded
+                if (modelLoadStatus !== 'loaded') {
+                    lastModel = null;
+                    lastPipeline = null;
+                    modelLoadStatus = 'not_loaded';
+                }
                 
                 const modelToTest = DEFAULT_MODEL;
-                console.log(`[background.js] Testing model: ${modelToTest}`);
+                console.log(`[background.js] Testing model: ${modelToTest} (current status: ${modelLoadStatus})`);
+                
+                // If already loaded, just return success
+                if (modelLoadStatus === 'loaded' && lastPipeline) {
+                    console.log(`[background.js] Model already loaded, skipping download`);
+                    sendResponse({ success: true, message: `Model already loaded: ${modelToTest}` });
+                    return;
+                }
                 
                 await getPipeline(modelToTest);
                 sendResponse({ success: true, message: `Test model loaded successfully: ${modelToTest}` });
@@ -241,6 +271,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 sendResponse({ success: false, error: error.message });
             }
         })();
+        return true;
+    }
+
+    if (message.action === 'setMode') {
+        console.log(`[background.js] Mode changed to: ${message.mode}, AI Ready: ${message.aiModelReady}`);
+        // Store mode information for context
+        chrome.storage.local.set({ 
+            currentMode: message.mode,
+            aiModelReady: message.aiModelReady 
+        });
+        sendResponse({ success: true });
         return true;
     }
 });

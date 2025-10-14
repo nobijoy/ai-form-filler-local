@@ -4,61 +4,183 @@ console.log('AI Form Filler popup loaded');
 const fillButton = document.getElementById('fill-btn');
 const checkModelButton = document.getElementById('check-model-btn');
 const testModelButton = document.getElementById('test-model-btn');
+const downloadButton = document.getElementById('download-btn');
+const toggleDebugButton = document.getElementById('toggle-debug-btn');
 const statusDiv = document.getElementById('status');
 
-// --- Progress Tracking ---
+// Mode selector elements
+const aiModeTab = document.getElementById('ai-mode-tab');
+const basicModeTab = document.getElementById('basic-mode-tab');
+const aiModeInfo = document.getElementById('ai-mode-info');
+const basicModeInfo = document.getElementById('basic-mode-info');
+const aiSetupSection = document.getElementById('ai-setup-section');
+
+// AI status elements
+const modelStatusDiv = document.getElementById('model-status');
+const statusIndicator = document.getElementById('status-indicator');
+const statusText = document.getElementById('status-text');
+const loadingSpinner = document.getElementById('loading-spinner');
+const progressBar = document.getElementById('progress-bar');
+const progressFill = document.getElementById('progress-fill');
+const progressText = document.getElementById('progress-text');
+const debugSection = document.getElementById('debug-section');
+
+// --- State ---
+let currentMode = 'basic'; // 'ai' or 'basic'
+let aiModelReady = false;
 let progressInterval = null;
 
-// Function to start polling for progress updates
-function startProgressPolling() {
-    if (progressInterval) {
-        clearInterval(progressInterval);
-    }
-    
-    progressInterval = setInterval(async () => {
-        try {
-            const response = await chrome.runtime.sendMessage({ action: 'getModelStatus' });
-            if (response && response.status === 'loading') {
-                setStatus('info', `⏳ Downloading AI Model: ${response.progress || 0}%`);
-            } else if (response && response.status === 'loaded') {
-                setStatus('success', `✅ AI Model Loaded: ${response.model} (${response.progress || 100}%)`);
-                stopProgressPolling();
-            } else if (response && response.status === 'failed') {
-                setStatus('error', '❌ AI Model: Failed to load');
-                stopProgressPolling();
-            }
-        } catch (error) {
-            console.log('Progress polling error:', error);
-        }
-    }, 500); // Poll every 500ms
-}
-
-// Function to stop progress polling
-function stopProgressPolling() {
-    if (progressInterval) {
-        clearInterval(progressInterval);
-        progressInterval = null;
-    }
-}
-
-// --- Progress Update Handler ---
+// --- Progress Update Handler (Single source of truth) ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'progressUpdate') {
         const { progress, status, model } = message;
         console.log(`📥 Progress Update: ${progress}% (${status})`);
         
         if (status === 'loading') {
-            setStatus('info', `⏳ Downloading AI Model: ${progress}%`);
+            // Show progress only in the model status area (without percentage in text)
+            updateModelStatus('loading', `Downloading AI model...`, progress);
         } else if (status === 'loaded') {
-            setStatus('success', `✅ AI Model Loaded: ${model} (${progress}%)`);
+            console.log('🎉 AI model loaded successfully!');
+            aiModelReady = true;
+            updateModelStatus('ready', `✅ AI model ready for intelligent form filling`, 100);
+            setStatus('success', `✅ AI Model Downloaded Successfully!`);
+            
+            // Update UI for AI mode
+            if (currentMode === 'ai') {
+                aiSetupSection.style.display = 'none';
+                fillButton.disabled = false;
+                fillButton.textContent = 'Fill Forms with AI';
+                downloadButton.disabled = false; // Re-enable for future use
+            }
+            
+            // Save the fact that model is ready
+            chrome.storage.sync.set({ aiModelReady: true });
+            
+            // Clear any timeout
+            if (window.downloadTimeout) {
+                clearTimeout(window.downloadTimeout);
+                window.downloadTimeout = null;
+            }
+        } else if (status === 'failed') {
+            aiModelReady = false;
+            updateModelStatus('error', '❌ AI model failed to load');
+            setStatus('error', '❌ AI Model Download Failed');
+            
+            // Show setup section again
+            if (currentMode === 'ai') {
+                aiSetupSection.style.display = 'block';
+                fillButton.disabled = true;
+                downloadButton.disabled = false;
+            }
         }
     }
 });
 
+// --- Mode Management ---
+function switchMode(mode) {
+    currentMode = mode;
+    console.log(`🔄 Switching to ${mode} mode`);
+    
+    // Update tab appearance
+    aiModeTab.classList.toggle('active', mode === 'ai');
+    basicModeTab.classList.toggle('active', mode === 'basic');
+    
+    // Update info sections
+    aiModeInfo.style.display = mode === 'ai' ? 'block' : 'none';
+    basicModeInfo.style.display = mode === 'basic' ? 'block' : 'none';
+    
+    // Clear any existing status
+    setStatus('', '');
+    
+    // Update UI based on mode
+    if (mode === 'ai') {
+        modelStatusDiv.style.display = 'block';
+        
+        if (aiModelReady) {
+            // AI model is ready
+            aiSetupSection.style.display = 'none';
+            fillButton.textContent = 'Fill Forms with AI';
+            fillButton.disabled = false;
+            updateModelStatus('ready', '✅ AI model ready for intelligent form filling', 100);
+            setStatus('success', 'AI mode active - ready for intelligent form filling');
+        } else {
+            // AI model needs to be downloaded
+            aiSetupSection.style.display = 'block';
+            fillButton.textContent = 'Fill Forms with AI';
+            fillButton.disabled = true;
+            updateModelStatus('', '🤖 AI model not downloaded yet');
+            setStatus('info', 'AI model needs to be downloaded first');
+        }
+    } else {
+        // Basic mode
+        modelStatusDiv.style.display = 'none';
+        aiSetupSection.style.display = 'none';
+        fillButton.textContent = 'Fill Forms (Basic Mode)';
+        fillButton.disabled = false;
+        setStatus('success', 'Basic mode active - ready for instant pattern matching');
+    }
+    
+    // Save preference and notify background script
+    chrome.storage.sync.set({ preferredMode: mode });
+    
+    // Notify background script of mode change
+    try {
+        chrome.runtime.sendMessage({ 
+            action: 'setMode', 
+            mode: mode,
+            aiModelReady: aiModelReady 
+        });
+    } catch (error) {
+        console.log('Could not notify background script of mode change:', error);
+    }
+}
+
+// --- UI Helper Functions ---
+function updateModelStatus(status, message, progress = 0) {
+    statusText.textContent = message;
+    
+    // Update spinner and indicator
+    if (status === 'loading') {
+        loadingSpinner.classList.remove('hidden');
+        statusIndicator.className = 'status-indicator loading';
+        progressBar.style.display = 'block';
+        progressFill.style.width = `${progress}%`;
+        progressText.textContent = `${progress}%`;
+    } else if (status === 'ready') {
+        loadingSpinner.classList.add('hidden');
+        statusIndicator.className = 'status-indicator ready';
+        progressBar.style.display = 'none';
+        aiModelReady = true;
+        
+        // Update UI properly for AI mode
+        if (currentMode === 'ai') {
+            fillButton.disabled = false;
+            fillButton.textContent = 'Fill Forms with AI';
+            aiSetupSection.style.display = 'none';
+        }
+    } else if (status === 'error') {
+        loadingSpinner.classList.add('hidden');
+        statusIndicator.className = 'status-indicator error';
+        progressBar.style.display = 'none';
+        aiModelReady = false;
+        
+        // Show setup section again for AI mode
+        if (currentMode === 'ai') {
+            aiSetupSection.style.display = 'block';
+            fillButton.disabled = true;
+        }
+    } else {
+        loadingSpinner.classList.add('hidden');
+        statusIndicator.className = 'status-indicator';
+        progressBar.style.display = 'none';
+    }
+}
+
+
+
 // --- UI and Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
-    setStatus('success', 'Ready for intelligent form filling!');
-    fillButton.disabled = false;
+    console.log('AI Form Filler popup initializing...');
     
     // Set up progress callback with background script
     try {
@@ -68,8 +190,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Could not set up progress callback:', error);
     }
     
+    // Load saved preferences
+    try {
+        const result = await chrome.storage.sync.get(['preferredMode', 'aiModelReady']);
+        const savedMode = result.preferredMode || 'basic';
+        const savedModelReady = result.aiModelReady || false;
+        
+        currentMode = savedMode;
+        aiModelReady = savedModelReady;
+        
+        console.log(`📋 Loaded preferences: mode=${savedMode}, aiReady=${savedModelReady}`);
+    } catch (error) {
+        console.log('Could not load saved preferences:', error);
+    }
+    
+    // Check current AI model status
+    await checkModelStatus();
+    
+    // Initialize UI with saved/default mode
+    switchMode(currentMode);
+    
     console.log('AI Form Filler popup ready');
 });
+
+// --- Model Status Check ---
+async function checkModelStatus() {
+    updateModelStatus('loading', 'Checking AI model status...', 0);
+    
+    try {
+        const response = await chrome.runtime.sendMessage({ action: 'getModelStatus' });
+        console.log('Model status:', response);
+        
+        if (response) {
+            const { status, model, pipelineReady, progress } = response;
+            
+            switch (status) {
+                case 'loaded':
+                    aiModelReady = true;
+                    updateModelStatus('ready', `✅ AI Model Ready (${model})`, 100);
+                    break;
+                case 'loading':
+                    aiModelReady = false;
+                    updateModelStatus('loading', `Downloading AI model...`, progress || 0);
+                    break;
+                case 'not_loaded':
+                    aiModelReady = false;
+                    updateModelStatus('', '🤖 AI model not downloaded yet');
+                    break;
+                case 'failed':
+                    aiModelReady = false;
+                    updateModelStatus('error', '❌ AI model failed to load');
+                    break;
+                default:
+                    aiModelReady = false;
+                    updateModelStatus('', '❓ Unknown model status');
+            }
+        } else {
+            aiModelReady = false;
+            updateModelStatus('error', '❌ Could not check model status');
+        }
+    } catch (error) {
+        console.error('Error checking model status:', error);
+        updateModelStatus('error', '❌ Error checking model status');
+        infoSection.style.display = 'block';
+    }
+}
 
 
 // Check model status button
@@ -151,13 +336,100 @@ testModelButton.addEventListener('click', async () => {
     testModelButton.disabled = false;
 });
 
-// Main button click listener
+// --- Event Listeners ---
+
+// Mode tab switching
+aiModeTab.addEventListener('click', () => {
+    switchMode('ai');
+});
+
+basicModeTab.addEventListener('click', () => {
+    switchMode('basic');
+});
+
+// Download AI Model button
+downloadButton.addEventListener('click', async () => {
+    console.log('🔄 Starting AI model download...');
+    
+    // Update UI to show download starting (only in model status area)
+    updateModelStatus('loading', 'Starting AI model download...', 0);
+    aiSetupSection.style.display = 'none';
+    fillButton.disabled = true;
+    downloadButton.disabled = true;
+    
+    // Set a timeout to prevent getting stuck
+    window.downloadTimeout = setTimeout(() => {
+        console.warn('⏰ Download timeout - model loading took too long');
+        aiModelReady = false;
+        updateModelStatus('error', '❌ Download timed out');
+        aiSetupSection.style.display = 'block';
+        fillButton.disabled = true;
+        downloadButton.disabled = false;
+        setStatus('error', 'Download timed out. Please try again.');
+    }, 300000); // 5 minutes timeout
+    
+    try {
+        // Just trigger the download - progress updates will come via message handler
+        const response = await chrome.runtime.sendMessage({ action: 'testModelLoading' });
+        
+        console.log('📥 Download initiated:', response);
+        
+        // If response indicates already loaded, handle immediately
+        if (response && response.success && response.message.includes('already loaded')) {
+            console.log('🎉 Model was already loaded!');
+            clearTimeout(window.downloadTimeout);
+            window.downloadTimeout = null;
+            
+            aiModelReady = true;
+            updateModelStatus('ready', `✅ AI model ready for intelligent form filling`, 100);
+            setStatus('success', `✅ AI Model Ready!`);
+            
+            if (currentMode === 'ai') {
+                aiSetupSection.style.display = 'none';
+                fillButton.disabled = false;
+                fillButton.textContent = 'Fill Forms with AI';
+                downloadButton.disabled = false;
+            }
+            
+            chrome.storage.sync.set({ aiModelReady: true });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error initiating model download:', error);
+        clearTimeout(window.downloadTimeout);
+        window.downloadTimeout = null;
+        
+        aiModelReady = false;
+        updateModelStatus('error', '❌ Error starting download');
+        aiSetupSection.style.display = 'block';
+        fillButton.disabled = true;
+        downloadButton.disabled = false;
+        setStatus('error', `Download error: ${error.message}`);
+    }
+});
+
+// Toggle debug section
+toggleDebugButton.addEventListener('click', () => {
+    const isVisible = debugSection.style.display !== 'none';
+    debugSection.style.display = isVisible ? 'none' : 'block';
+});
+
+// Main Fill Forms button
 fillButton.addEventListener('click', async () => {
-    setStatus('info', 'AI analyzing and filling forms...');
+    const useBasicMode = currentMode === 'basic';
+    
+    console.log(`🚀 Fill button clicked - Mode: ${currentMode}, UseBasic: ${useBasicMode}, AIReady: ${aiModelReady}`);
+    
+    // Validate mode state
+    if (currentMode === 'ai' && !aiModelReady) {
+        setStatus('error', 'AI model not ready. Please download it first or switch to Basic mode.');
+        return;
+    }
+    
+    setStatus('info', `${currentMode === 'ai' ? 'AI analyzing' : 'Pattern matching'} and filling forms...`);
     fillButton.disabled = true;
     
-    // Start progress polling in case model needs to be loaded
-    startProgressPolling();
+    // No need for progress polling - handled by message handler
 
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -169,7 +441,11 @@ fillButton.addEventListener('click', async () => {
         }
 
         const sendFillMessage = () => new Promise((resolve) => {
-            chrome.tabs.sendMessage(tab.id, { action: 'executeFill', model: 'Xenova/bert-base-NER' }, (response) => {
+            chrome.tabs.sendMessage(tab.id, { 
+                action: 'executeFill', 
+                model: 'Xenova/bert-base-NER',
+                useBasicMode: useBasicMode
+            }, (response) => {
                 resolve(response);
             });
         });
@@ -191,12 +467,16 @@ fillButton.addEventListener('click', async () => {
             }
         }
 
-        stopProgressPolling(); // Stop polling when form filling is complete
         if (response?.success) {
             const count = response.results?.length || 0;
             const aiCount = response.results?.filter(r => r.method === 'ai-ner').length || 0;
-            const fallbackCount = response.results?.filter(r => r.method === 'fallback').length || 0;
-            setStatus('success', `Filled ${count} fields (${aiCount} AI, ${fallbackCount} pattern).`);
+            const patternCount = response.results?.filter(r => r.method === 'pattern-matching' || r.method === 'fallback').length || 0;
+            
+            if (currentMode === 'basic') {
+                setStatus('success', `✅ Filled ${count} fields using pattern matching`);
+            } else {
+                setStatus('success', `✅ Filled ${count} fields (${aiCount} AI, ${patternCount} pattern)`);
+            }
         } else {
             const errMsg = chrome.runtime.lastError?.message || response?.error || 'Failed to fill forms.';
             setStatus('error', `Error: ${errMsg}`);
@@ -206,7 +486,6 @@ fillButton.addEventListener('click', async () => {
     } catch (error) {
         console.error('Error during form fill process:', error);
         setStatus('error', `Error: ${error.message}`);
-        stopProgressPolling();
         fillButton.disabled = false;
     }
 });
@@ -216,7 +495,4 @@ function setStatus(type, message) {
     statusDiv.className = `status-${type}`;
 }
 
-// Cleanup when popup is closed
-window.addEventListener('beforeunload', () => {
-    stopProgressPolling();
-});
+// No cleanup needed - using message handler for progress
