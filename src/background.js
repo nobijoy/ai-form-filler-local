@@ -151,6 +151,12 @@ async function getPipeline(model, progress_callback = null, retryCount = 0) {
         lastLoggedProgress = 100;
         console.log('[background.js] ✅ AI MODEL LOADED SUCCESSFULLY:', model);
         
+        // Update AI model ready status and context menu
+        chrome.storage.local.set({ aiModelReady: true });
+        const result = await chrome.storage.local.get(['currentMode']);
+        const currentMode = result.currentMode || 'basic';
+        updateContextMenuTitle(currentMode, true);
+        
         // Notify popup of completion
         if (progressCallback) {
             console.log('[background.js] 📤 Sending completion notification to popup');
@@ -281,8 +287,111 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             currentMode: message.mode,
             aiModelReady: message.aiModelReady 
         });
+        
+        // Update context menu title based on mode
+        updateContextMenuTitle(message.mode, message.aiModelReady);
+        
         sendResponse({ success: true });
         return true;
+    }
+});
+
+// --- Context Menu Setup ---
+chrome.runtime.onInstalled.addListener(async () => {
+    console.log('[background.js] Extension installed, creating context menu');
+    
+    // Get current mode to set initial title
+    const result = await chrome.storage.local.get(['currentMode', 'aiModelReady']);
+    const currentMode = result.currentMode || 'basic';
+    const aiModelReady = result.aiModelReady || false;
+    
+    // Create context menu item with dynamic title
+    chrome.contextMenus.create({
+        id: 'fillForm',
+        title: getContextMenuTitle(currentMode, aiModelReady),
+        contexts: ['page']
+    });
+});
+
+// --- Helper: Get context menu title based on mode ---
+function getContextMenuTitle(mode, aiModelReady) {
+    if (mode === 'basic') {
+        return 'Fill Form (Basic Mode)';
+    } else if (mode === 'ai' && aiModelReady) {
+        return 'Fill Form (AI Mode)';
+    } else if (mode === 'ai' && !aiModelReady) {
+        return 'Fill Form (Basic Mode - AI not ready)';
+    }
+    return 'Fill Form with AI Form Filler';
+}
+
+// --- Helper: Update context menu title ---
+function updateContextMenuTitle(mode, aiModelReady) {
+    const newTitle = getContextMenuTitle(mode, aiModelReady);
+    chrome.contextMenus.update('fillForm', {
+        title: newTitle
+    });
+    console.log(`[background.js] Context menu title updated to: "${newTitle}"`);
+}
+
+// --- Context Menu Click Handler ---
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === 'fillForm') {
+        console.log('[background.js] Context menu clicked - filling form');
+        
+        try {
+            // Get current mode from storage
+            const result = await chrome.storage.local.get(['currentMode', 'aiModelReady']);
+            const currentMode = result.currentMode || 'basic';
+            const aiModelReady = result.aiModelReady || false;
+            const useBasicMode = currentMode === 'basic';
+            
+            console.log(`[background.js] Context menu fill - Mode: ${currentMode}, UseBasic: ${useBasicMode}, AIReady: ${aiModelReady}`);
+            
+            // Validate mode state
+            if (currentMode === 'ai' && !aiModelReady) {
+                console.warn('[background.js] AI mode selected but model not ready, falling back to basic mode');
+                // Could show a notification here, but for now just use basic mode
+            }
+            
+            // Send message to content script
+            chrome.tabs.sendMessage(tab.id, {
+                action: 'executeFill',
+                model: 'Xenova/bert-base-NER',
+                useBasicMode: useBasicMode || (currentMode === 'ai' && !aiModelReady)
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error('[background.js] Context menu fill failed:', chrome.runtime.lastError);
+                    
+                    // Try injecting content script and retry
+                    chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['src/content.js']
+                    }).then(() => {
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: 'executeFill',
+                            model: 'Xenova/bert-base-NER',
+                            useBasicMode: useBasicMode || (currentMode === 'ai' && !aiModelReady)
+                        }, (retryResponse) => {
+                            if (retryResponse?.success) {
+                                console.log('[background.js] Context menu fill successful after injection');
+                            } else {
+                                console.error('[background.js] Context menu fill failed after injection');
+                            }
+                        });
+                    }).catch((error) => {
+                        console.error('[background.js] Failed to inject content script:', error);
+                    });
+                } else if (response?.success) {
+                    console.log('[background.js] Context menu fill successful');
+                } else {
+                    console.error('[background.js] Context menu fill failed:', response?.error);
+                }
+            });
+            
+        } catch (error) {
+            console.error('[background.js] Error in context menu handler:', error);
+        }
     }
 });
 

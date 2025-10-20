@@ -1,77 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Form Filler</title>
-  <link rel="stylesheet" href="popup.css" />
-</head>
-<body>
-  <div class="popup-container">
-    <div class="header">
-      <img src="/icons/icon48.png" alt="AI Form Filler Icon" class="logo">
-      <h1>AI Form Filler</h1>
-    </div>
-    
-    <!-- Mode Selector -->
-    <div class="mode-selector" id="mode-selector">
-      <div class="mode-tabs">
-        <button class="mode-tab" id="ai-mode-tab" data-mode="ai">
-          <span class="mode-icon">🤖</span>
-          <span class="mode-label">AI Mode</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Form Filler</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <div class="header">
+        <img src="/icons/icon48.png" alt="AI Form Filler Icon" class="logo" />
+        <h1>AI Form Filler</h1>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="mode-selector" id="mode-selector">
+        <div class="mode-tabs">
+          <button class="mode-tab" id="ai-mode-tab" data-mode="ai">
+            <span class="mode-icon">🤖</span>
+            <span class="mode-label">AI Mode</span>
+          </button>
+          <button class="mode-tab active" id="basic-mode-tab" data-mode="basic">
+            <span class="mode-icon">⚡</span>
+            <span class="mode-label">Basic Mode</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Mode Status -->
+      <div class="model-status" id="model-status" style="display: none">
+        <div class="status-indicator" id="status-indicator">
+          <div class="loading-spinner" id="loading-spinner"></div>
+          <span id="status-text">Checking AI model...</span>
+        </div>
+        <div class="progress-bar" id="progress-bar" style="display: none">
+          <div class="progress-fill" id="progress-fill"></div>
+          <span class="progress-text" id="progress-text">0%</span>
+        </div>
+      </div>
+
+      <!-- Mode Info -->
+      <div class="mode-info" id="mode-info">
+        <div class="mode-description" id="ai-mode-info" style="display: none">
+          <p class="info-text">
+            <strong>AI Mode:</strong> Uses machine learning for intelligent
+            field recognition for better accuracy. Requires one-time download
+            (~200MB).
+          </p>
+        </div>
+        <div class="mode-description" id="basic-mode-info">
+          <p class="info-text">
+            <strong>Basic Mode:</strong> Uses smart pattern matching. Works
+            instantly, no downloads required. Great for most forms.
+          </p>
+        </div>
+      </div>
+
+      <button id="fill-btn">Fill Forms</button>
+
+      <!-- AI Setup Section -->
+      <div class="ai-setup-section" id="ai-setup-section" style="display: none">
+        <button id="download-btn" class="secondary-btn">
+          Download AI Model
         </button>
-        <button class="mode-tab active" id="basic-mode-tab" data-mode="basic">
-          <span class="mode-icon">⚡</span>
-          <span class="mode-label">Basic Mode</span>
+      </div>
+
+      <div id="status"></div>
+
+      <!-- Debug buttons (hidden by default) -->
+      <div class="debug-section" id="debug-section" style="display: none">
+        <button id="check-model-btn" class="debug-btn">
+          Check Model Status
         </button>
+        <button id="test-model-btn" class="debug-btn">
+          Test Model Loading
+        </button>
+        <button id="toggle-debug-btn" class="debug-toggle">🔧</button>
       </div>
     </div>
-
-    <!-- AI Mode Status -->
-    <div class="model-status" id="model-status" style="display: none;">
-      <div class="status-indicator" id="status-indicator">
-        <div class="loading-spinner" id="loading-spinner"></div>
-        <span id="status-text">Checking AI model...</span>
-      </div>
-      <div class="progress-bar" id="progress-bar" style="display: none;">
-        <div class="progress-fill" id="progress-fill"></div>
-        <span class="progress-text" id="progress-text">0%</span>
-      </div>
-    </div>
-
-    <!-- Mode Info -->
-    <div class="mode-info" id="mode-info">
-      <div class="mode-description" id="ai-mode-info" style="display: none;">
-        <p class="info-text">
-          <strong>AI Mode:</strong> Uses machine learning for intelligent field recognition. 
-          Requires one-time download (~200MB) but provides better accuracy.
-        </p>
-      </div>
-      <div class="mode-description" id="basic-mode-info">
-        <p class="info-text">
-          <strong>Basic Mode:</strong> Uses smart pattern matching. 
-          Works instantly, no downloads required. Great for most forms.
-        </p>
-      </div>
-    </div>
-
-    <button id="fill-btn">Fill Forms</button>
-    
-    <!-- AI Setup Section -->
-    <div class="ai-setup-section" id="ai-setup-section" style="display: none;">
-      <button id="download-btn" class="secondary-btn">Download AI Model</button>
-      <div class="setup-note">This will download ~200MB once</div>
-    </div>
-    
-    <div id="status"></div>
-    
-    <!-- Debug buttons (hidden by default) -->
-    <div class="debug-section" id="debug-section" style="display: none;">
-      <button id="check-model-btn" class="debug-btn">Check Model Status</button>
-      <button id="test-model-btn" class="debug-btn">Test Model Loading</button>
-      <button id="toggle-debug-btn" class="debug-toggle">🔧</button>
-    </div>
-  </div>
-  <script src="popup.js" type="module"></script>
-</body>
+    <script src="popup.js" type="module"></script>
+  </body>
 </html>

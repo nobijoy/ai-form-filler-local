@@ -6,7 +6,8 @@
   "permissions": [
     "scripting",
     "activeTab",
-    "storage"
+    "storage",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://huggingface.co/*",

@@ -228,15 +228,10 @@ us.status-warning {
 
 /* AI Setup Section */
 .ai-setup-section {
-  margin-bottom: 16px;
+  margin: 10px;
   text-align: center;
 }
 
-.setup-note {
-  font-size: 11px;
-  color: var(--info-color);
-  margin-top: 4px;
-}
 
 /* Model Status Section */
 .model-status {
