@@ -107,12 +107,15 @@ function switchMode(mode) {
         "AI mode active - ready for intelligent form filling"
       );
     } else {
-      // AI model needs to be downloaded - hide status section until download starts
+      // Deterministic fallback if AI is unavailable.
       modelStatusDiv.style.display = "none";
-      aiSetupSection.style.display = "block";
-      fillButton.textContent = "Fill Forms with AI";
-      fillButton.disabled = true;
-      setStatus("info", "AI model needs to be downloaded first");
+      aiSetupSection.style.display = "none";
+      fillButton.textContent = "Fill Forms (Deterministic)";
+      fillButton.disabled = false;
+      setStatus(
+        "info",
+        "AI model unavailable. Deterministic multilingual mode will be used."
+      );
     }
   } else {
     // Basic mode - always hide status section
@@ -240,6 +243,9 @@ async function checkModelStatus() {
       const { status } = response;
 
       switch (status) {
+        case "not_available":
+          aiModelReady = false;
+          break;
         case "loaded":
           aiModelReady = true;
           break;
@@ -287,6 +293,9 @@ checkModelButton.addEventListener("click", async () => {
       let statusMessage = "";
 
       switch (status) {
+        case "not_available":
+          statusMessage = "ℹ️ AI Model: Disabled (deterministic mode active)";
+          break;
         case "not_loaded":
           statusMessage = "❌ AI Model: Not loaded yet";
           break;

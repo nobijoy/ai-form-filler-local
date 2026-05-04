@@ -9,13 +9,6 @@
     "storage",
     "contextMenus"
   ],
-  "host_permissions": [
-    "https://huggingface.co/*",
-    "https://cdn-lfs.huggingface.co/*",
-    "https://cas-bridge.xethub.hf.co/*",
-    "https://*.huggingface.co/*",
-    "https://huggingface.co/api/*"
-  ],
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
@@ -40,14 +33,13 @@
     "128": "icons/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self'; connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co https://cas-bridge.xethub.hf.co https://*.huggingface.co https://huggingface.co/api https://cdn.jsdelivr.net"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self'; connect-src 'self' https://cdn.jsdelivr.net"
   },
   "web_accessible_resources": [
     {
       "resources": [
         "*.wasm",
-        "*.js",
-        "node_modules/@xenova/transformers/dist/*.wasm"
+        "*.js"
       ],
       "matches": [
         "<all_urls>"

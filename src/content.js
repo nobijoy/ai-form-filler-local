@@ -1,7 +1,154 @@
-import { faker } from "@faker-js/faker";
+import {
+  faker as defaultFaker,
+  Faker,
+  base,
+  en,
+  es,
+  fr,
+  de,
+} from "@faker-js/faker";
 import { franc } from "franc-min";
 
-// Faker uses English by default in newer versions, no need to set locale
+let faker = defaultFaker;
+const PERSONA_STORAGE_KEY = "formFillerPersonasByOrigin";
+const MAX_PERSONA_AGE_MS = 6 * 60 * 60 * 1000;
+const fakerByLocale = {
+  en: new Faker({ locale: [en, base] }),
+  es: new Faker({ locale: [es, en, base] }),
+  fr: new Faker({ locale: [fr, en, base] }),
+  de: new Faker({ locale: [de, en, base] }),
+};
+
+const SUPPORTED_LANGS = new Set(["en", "es", "fr", "de"]);
+
+const AUTOCOMPLETE_FIELD_MAP = {
+  name: "FULL_NAME",
+  honorific_prefix: "TEXT",
+  given_name: "FIRST_NAME",
+  additional_name: "TEXT",
+  family_name: "LAST_NAME",
+  honorific_suffix: "TEXT",
+  nickname: "TEXT",
+  email: "EMAIL",
+  username: "TEXT",
+  "new-password": "PASSWORD",
+  "current-password": "PASSWORD",
+  "one-time-code": "NUMBER",
+  organization: "COMPANY",
+  "organization-title": "JOB_TITLE",
+  "street-address": "ADDRESS",
+  "address-line1": "ADDRESS",
+  "address-line2": "ADDRESS",
+  "address-line3": "ADDRESS",
+  "address-level1": "CITY",
+  "address-level2": "CITY",
+  "address-level3": "CITY",
+  "address-level4": "CITY",
+  country: "COUNTRY",
+  "country-name": "COUNTRY",
+  "postal-code": "ZIP_CODE",
+  "cc-name": "FULL_NAME",
+  "cc-given-name": "FIRST_NAME",
+  "cc-family-name": "LAST_NAME",
+  "cc-number": "NUMBER",
+  "cc-exp": "DATE",
+  "cc-exp-month": "NUMBER",
+  "cc-exp-year": "NUMBER",
+  "cc-csc": "NUMBER",
+  bday: "DATE",
+  "bday-day": "NUMBER",
+  "bday-month": "NUMBER",
+  "bday-year": "NUMBER",
+  sex: "TEXT",
+  tel: "PHONE",
+  "tel-country-code": "PHONE",
+  "tel-national": "PHONE",
+  "tel-area-code": "PHONE",
+  "tel-local": "PHONE",
+  "tel-local-prefix": "PHONE",
+  "tel-local-suffix": "PHONE",
+  "tel-extension": "PHONE",
+  url: "URL",
+};
+
+const KEYWORDS = {
+  en: {
+    EMAIL: ["email", "e-mail", "mail"],
+    PASSWORD: ["password", "pwd", "pass"],
+    PHONE: ["phone", "tel", "telephone", "mobile", "cell", "contact number"],
+    URL: ["url", "website", "link", "homepage"],
+    DATE: ["date", "birthday", "birth", "dob"],
+    NUMBER: ["number", "num", "age", "quantity", "amount"],
+    FIRST_NAME: ["first name", "firstname", "fname", "given name"],
+    LAST_NAME: ["last name", "lastname", "lname", "surname", "family name"],
+    FULL_NAME: ["full name", "fullname", "complete name", "your name", "name"],
+    COMPANY: ["company", "organization", "organisation", "employer", "business", "corporation", "office", "workplace"],
+    JOB_TITLE: ["job", "position", "title", "role", "occupation", "profession"],
+    SUPERVISOR: ["supervisor", "manager", "boss", "superior", "lead", "director"],
+    ADDRESS: ["address", "street", "location", "residence"],
+    CITY: ["city", "town", "municipality"],
+    COUNTRY: ["country", "nation", "nationality"],
+    ZIP_CODE: ["zip", "postal", "postcode", "post code"],
+    TEXT: ["comment", "description", "message", "note", "detail", "about", "bio"],
+  },
+  es: {
+    EMAIL: ["correo", "correo electronico", "e-mail", "mail"],
+    PASSWORD: ["contrasena", "clave", "password"],
+    PHONE: ["telefono", "movil", "celular", "contacto"],
+    URL: ["sitio web", "url", "enlace", "pagina web"],
+    DATE: ["fecha", "nacimiento", "cumpleanos"],
+    NUMBER: ["numero", "edad", "cantidad", "monto"],
+    FIRST_NAME: ["nombre", "nombre de pila"],
+    LAST_NAME: ["apellido", "apellidos"],
+    FULL_NAME: ["nombre completo"],
+    COMPANY: ["empresa", "organizacion", "empleador", "trabajo"],
+    JOB_TITLE: ["puesto", "cargo", "profesion", "rol"],
+    SUPERVISOR: ["supervisor", "jefe", "gerente", "director"],
+    ADDRESS: ["direccion", "calle", "domicilio"],
+    CITY: ["ciudad", "municipio", "poblacion"],
+    COUNTRY: ["pais", "nacionalidad"],
+    ZIP_CODE: ["codigo postal", "postal"],
+    TEXT: ["comentario", "descripcion", "mensaje", "nota", "detalle", "bio"],
+  },
+  fr: {
+    EMAIL: ["email", "e-mail", "courriel", "mail"],
+    PASSWORD: ["mot de passe", "password"],
+    PHONE: ["telephone", "tel", "portable", "mobile"],
+    URL: ["site web", "url", "lien"],
+    DATE: ["date", "naissance", "anniversaire"],
+    NUMBER: ["numero", "age", "quantite", "montant"],
+    FIRST_NAME: ["prenom"],
+    LAST_NAME: ["nom de famille", "nom"],
+    FULL_NAME: ["nom complet"],
+    COMPANY: ["entreprise", "organisation", "employeur", "travail"],
+    JOB_TITLE: ["poste", "fonction", "role", "profession"],
+    SUPERVISOR: ["superviseur", "manager", "responsable", "directeur"],
+    ADDRESS: ["adresse", "rue", "domicile"],
+    CITY: ["ville", "commune"],
+    COUNTRY: ["pays", "nationalite"],
+    ZIP_CODE: ["code postal", "postal"],
+    TEXT: ["commentaire", "description", "message", "note", "detail", "bio"],
+  },
+  de: {
+    EMAIL: ["email", "e-mail", "mail"],
+    PASSWORD: ["passwort"],
+    PHONE: ["telefon", "handy", "mobil", "kontakt"],
+    URL: ["webseite", "url", "link", "homepage"],
+    DATE: ["datum", "geburtstag", "geburtsdatum"],
+    NUMBER: ["nummer", "alter", "menge", "betrag"],
+    FIRST_NAME: ["vorname"],
+    LAST_NAME: ["nachname", "familienname"],
+    FULL_NAME: ["vollstandiger name", "voller name", "name"],
+    COMPANY: ["firma", "unternehmen", "organisation", "arbeitgeber", "arbeitsplatz"],
+    JOB_TITLE: ["position", "rolle", "beruf", "titel"],
+    SUPERVISOR: ["vorgesetzter", "manager", "leiter", "direktor", "chef"],
+    ADDRESS: ["adresse", "strasse", "wohnort"],
+    CITY: ["stadt", "ort", "gemeinde"],
+    COUNTRY: ["land", "nationalitat"],
+    ZIP_CODE: ["plz", "postleitzahl", "postal"],
+    TEXT: ["kommentar", "beschreibung", "nachricht", "notiz", "detail", "bio"],
+  },
+};
 
 // Listener for messages from the popup and background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -44,25 +191,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function fillForms(model, useBasicMode = false) {
   // Now takes model and basic mode parameters
   const results = [];
-  
-  console.log(`📋 Fill mode: ${useBasicMode ? 'BASIC (Pattern Matching Only)' : 'AI + Pattern Matching'}`);
-  
-  if (useBasicMode) {
-    console.log('🔧 BASIC MODE: Skipping all AI calls, using pattern matching only');
+
+  // Deterministic mode is default for zero-cost, browser-stable behavior.
+  const deterministicMode = true;
+  if (!useBasicMode && deterministicMode) {
+    console.log("🔒 AI mode requested, but deterministic mode is active. Falling back to basic mode.");
   }
+  useBasicMode = true;
+
+  console.log(`📋 Fill mode: BASIC (Deterministic + Session Persona)`);
   const inputs = document.querySelectorAll(
     'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="file"]):not([type="image"]), textarea, select, output'
   );
 
-  const lang = document.documentElement.lang || franc(document.body.innerText);
+  const lang = detectPageLanguage();
+  faker = getFakerForLanguage(lang);
   console.log("Detected language:", lang);
 
-  // Store generated user data for consistency
-  let generatedUserData = {
-    fullName: null,
-    firstName: null,
-    lastName: null,
-  };
+  const originKey = window.location.origin;
+  let generatedUserData = await getOrCreatePersona(originKey, lang);
 
   // Track processed radio groups to avoid duplicates
   const processedRadioGroups = new Set();
@@ -123,7 +270,7 @@ async function fillForms(model, useBasicMode = false) {
           // BASIC MODE: Skip AI entirely, use pattern matching only
           console.log(`🔧 BASIC MODE: Using pattern matching for "${textToAnalyze}"`);
           
-          const expectedType = detectFieldType(textToAnalyze, input);
+          const expectedType = detectFieldType(textToAnalyze, input, lang);
           const patternFilled = fillFieldWithPatterns(
             input,
             textToAnalyze,
@@ -255,7 +402,88 @@ async function fillForms(model, useBasicMode = false) {
       }
     }
   }
+  await persistPersona(originKey, generatedUserData, lang);
   return results;
+}
+
+function normalizeLang(lang) {
+  if (!lang || typeof lang !== "string") return "en";
+  const normalized = lang.toLowerCase().split("-")[0];
+  return SUPPORTED_LANGS.has(normalized) ? normalized : "en";
+}
+
+function detectPageLanguage() {
+  const htmlLang = document.documentElement.lang;
+  if (htmlLang) {
+    return normalizeLang(htmlLang);
+  }
+
+  const detected = franc(document.body?.innerText || "");
+  if (detected === "spa") return "es";
+  if (detected === "fra") return "fr";
+  if (detected === "deu") return "de";
+  return "en";
+}
+
+function getFakerForLanguage(lang) {
+  const normalized = normalizeLang(lang);
+  return fakerByLocale[normalized] || fakerByLocale.en;
+}
+
+async function getOrCreatePersona(origin, lang) {
+  const normalizedLang = normalizeLang(lang);
+  const storage = await chrome.storage.local.get([PERSONA_STORAGE_KEY]);
+  const personasByOrigin = storage[PERSONA_STORAGE_KEY] || {};
+  const now = Date.now();
+  const existing = personasByOrigin[origin];
+
+  if (
+    existing?.persona &&
+    existing.lang === normalizedLang &&
+    now - (existing.updatedAt || 0) < MAX_PERSONA_AGE_MS
+  ) {
+    return existing.persona;
+  }
+
+  const persona = buildPersona(normalizedLang);
+  personasByOrigin[origin] = { persona, lang: normalizedLang, updatedAt: now };
+  await chrome.storage.local.set({ [PERSONA_STORAGE_KEY]: personasByOrigin });
+  return persona;
+}
+
+async function persistPersona(origin, persona, lang) {
+  const storage = await chrome.storage.local.get([PERSONA_STORAGE_KEY]);
+  const personasByOrigin = storage[PERSONA_STORAGE_KEY] || {};
+  personasByOrigin[origin] = {
+    persona,
+    lang: normalizeLang(lang),
+    updatedAt: Date.now(),
+  };
+  await chrome.storage.local.set({ [PERSONA_STORAGE_KEY]: personasByOrigin });
+}
+
+function buildPersona(lang) {
+  const localeFaker = getFakerForLanguage(lang);
+  const firstName = localeFaker.person.firstName();
+  const lastName = localeFaker.person.lastName();
+  const provider = localeFaker.helpers.arrayElement([
+    "gmail.com",
+    "yahoo.com",
+    "outlook.com",
+    "protonmail.com",
+  ]);
+  return {
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`,
+    email: `${firstName}.${lastName}`.replace(/\s+/g, "").toLowerCase() + `@${provider}`,
+    company: localeFaker.company.name(),
+    city: localeFaker.location.city(),
+    address: localeFaker.location.streetAddress(),
+    country: localeFaker.location.country(),
+    zipCode: localeFaker.location.zipCode(),
+    jobTitle: localeFaker.person.jobTitle(),
+  };
 }
 
 // Pattern-only filling function for basic mode
@@ -282,26 +510,26 @@ function fillFieldWithPatterns(input, textToAnalyze, expectedType, userData) {
       break;
     case "COMPANY":
     case "ORGANIZATION":
-      value = faker.company.name();
+      value = userData.company || faker.company.name();
       break;
     case "PHONE":
       value = generatePhoneNumber(input);
       break;
     case "CITY":
     case "LOCATION":
-      value = faker.location.city();
+      value = userData.city || faker.location.city();
       break;
     case "ADDRESS":
-      value = faker.location.streetAddress();
+      value = userData.address || faker.location.streetAddress();
       break;
     case "COUNTRY":
-      value = faker.location.country();
+      value = userData.country || faker.location.country();
       break;
     case "ZIP_CODE":
-      value = faker.location.zipCode();
+      value = userData.zipCode || faker.location.zipCode();
       break;
     case "JOB_TITLE":
-      value = faker.person.jobTitle();
+      value = userData.jobTitle || faker.person.jobTitle();
       break;
     case "SUPERVISOR":
       value = generatePersonName({}); // Different person for supervisor
@@ -738,7 +966,7 @@ function fillField(
     `🔄 Smart Fallback: Analyzing "${textToAnalyze}" with pattern matching`
   );
 
-  const fieldType = analysis || detectFieldType(textToAnalyze, input);
+  const fieldType = analysis || detectFieldType(textToAnalyze, input, lang);
   if (fieldType) {
     console.log(`🎯 Pattern detected: ${fieldType}`);
 
@@ -762,26 +990,26 @@ function fillField(
         break;
       case "COMPANY":
       case "ORGANIZATION":
-        value = faker.company.name();
+        value = userData.company || faker.company.name();
         break;
       case "PHONE":
         value = generatePhoneNumber(input);
         break;
       case "CITY":
       case "LOCATION":
-        value = faker.location.city();
+        value = userData.city || faker.location.city();
         break;
       case "ADDRESS":
-        value = faker.location.streetAddress();
+        value = userData.address || faker.location.streetAddress();
         break;
       case "COUNTRY":
-        value = faker.location.country();
+        value = userData.country || faker.location.country();
         break;
       case "ZIP_CODE":
-        value = faker.location.zipCode();
+        value = userData.zipCode || faker.location.zipCode();
         break;
       case "JOB_TITLE":
-        value = faker.person.jobTitle();
+        value = userData.jobTitle || faker.person.jobTitle();
         break;
       case "SUPERVISOR":
         value = generatePersonName({}); // Different person for supervisor
@@ -868,122 +1096,103 @@ function fillField(
   return false;
 }
 
-// Smart field type detection based on patterns
-function detectFieldType(text, input) {
-  const lowerText = text.toLowerCase();
-  const inputType = input.type?.toLowerCase();
-  const inputName = input.name?.toLowerCase() || "";
-  const inputId = input.id?.toLowerCase() || "";
-  const placeholder = input.placeholder?.toLowerCase() || "";
+function normalizeAutocompleteToken(autocomplete) {
+  if (!autocomplete) return null;
+  const tokens = autocomplete
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((token) => token && token !== "on" && token !== "off")
+    .filter((token) => !token.startsWith("section-"))
+    .filter((token) => token !== "shipping" && token !== "billing");
 
-  // Combine all text sources for analysis
-  const allText =
-    `${lowerText} ${inputName} ${inputId} ${placeholder}`.toLowerCase();
+  if (!tokens.length) return null;
+  return tokens[tokens.length - 1].replace(/-/g, "_");
+}
 
-  // Email detection
-  if (inputType === "email" || /\b(email|e-mail|mail)\b/.test(allText)) {
-    return "EMAIL";
-  }
+function resolveFromAutocomplete(input) {
+  const token = normalizeAutocompleteToken(input.autocomplete);
+  if (!token) return null;
+  return AUTOCOMPLETE_FIELD_MAP[token] || null;
+}
 
-  // Password detection
-  if (inputType === "password" || /\b(password|pwd|pass)\b/.test(allText)) {
-    return "PASSWORD";
+function getAccessibleLabel(input) {
+  const ariaLabel = input.getAttribute("aria-label") || "";
+  const labelledBy = input.getAttribute("aria-labelledby");
+  let labelledByText = "";
+  if (labelledBy) {
+    labelledByText = labelledBy
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.innerText || "")
+      .join(" ");
   }
+  return `${ariaLabel} ${labelledByText}`.trim();
+}
 
-  // Phone detection
-  if (
-    inputType === "tel" ||
-    /\b(phone|tel|telephone|mobile|cell|contact\s*number)\b/.test(allText)
-  ) {
-    return "PHONE";
-  }
+function includesKeyword(allText, keyword) {
+  return allText.includes(keyword.toLowerCase());
+}
 
-  // URL detection
-  if (inputType === "url" || /\b(url|website|link|homepage)\b/.test(allText)) {
-    return "URL";
-  }
+// Smart field type detection based on semantic priorities.
+function detectFieldType(text, input, lang = "en") {
+  const resolvedFromAutocomplete = resolveFromAutocomplete(input);
+  if (resolvedFromAutocomplete) return resolvedFromAutocomplete;
 
-  // Date detection
-  if (inputType === "date" || /\b(date|birthday|birth|dob)\b/.test(allText)) {
-    return "DATE";
-  }
+  const inputType = input.type?.toLowerCase() || "";
+  if (inputType === "email") return "EMAIL";
+  if (inputType === "password") return "PASSWORD";
+  if (inputType === "tel") return "PHONE";
+  if (inputType === "url") return "URL";
+  if (inputType === "date") return "DATE";
+  if (inputType === "number") return "NUMBER";
 
-  // Number detection
-  if (
-    inputType === "number" ||
-    /\b(number|num|age|quantity|amount)\b/.test(allText)
-  ) {
-    return "NUMBER";
-  }
+  const labelText = findLabelForInput(input)?.innerText || "";
+  const accessibleText = getAccessibleLabel(input);
+  const allText = [
+    text || "",
+    labelText,
+    accessibleText,
+    input.placeholder || "",
+    input.name || "",
+    input.id || "",
+  ]
+    .join(" ")
+    .toLowerCase();
 
-  // Name detection (most specific first)
-  if (/\b(first\s*name|firstname|fname|given\s*name)\b/.test(allText)) {
-    return "FIRST_NAME";
-  }
-  if (/\b(last\s*name|lastname|lname|surname|family\s*name)\b/.test(allText)) {
-    return "LAST_NAME";
-  }
-  if (
-    /\b(full\s*name|fullname|complete\s*name|your\s*name|name)\b/.test(allText)
-  ) {
-    return "FULL_NAME";
-  }
+  const normalizedLang = normalizeLang(lang);
+  const mergedKeywords = {
+    ...KEYWORDS.en,
+    ...(KEYWORDS[normalizedLang] || {}),
+  };
 
-  // Company/Organization detection
-  if (
-    /\b(company|organization|organisation|employer|business|corp|corporation)\b/.test(
-      allText
-    )
-  ) {
-    return "COMPANY";
-  }
+  const typePriority = [
+    "EMAIL",
+    "PASSWORD",
+    "PHONE",
+    "URL",
+    "DATE",
+    "NUMBER",
+    "FIRST_NAME",
+    "LAST_NAME",
+    "FULL_NAME",
+    "COMPANY",
+    "JOB_TITLE",
+    "SUPERVISOR",
+    "ADDRESS",
+    "CITY",
+    "COUNTRY",
+    "ZIP_CODE",
+    "TEXT",
+  ];
 
-  // Job/Position detection
-  if (/\b(job|position|title|role|occupation|profession)\b/.test(allText)) {
-    return "JOB_TITLE";
-  }
-
-  // Supervisor detection - more comprehensive patterns
-  if (
-    /\b(supervisor|manager|boss|superior|lead|director)\b/.test(allText) ||
-    /who.*is.*your.*(supervisor|manager|boss)/.test(allText) ||
-    /who.*do.*you.*report/.test(allText)
-  ) {
-    return "SUPERVISOR";
-  }
-
-  // Location detection - more comprehensive patterns
-  if (/\b(address|street|location|where.*live|residence)\b/.test(allText)) {
-    return "ADDRESS";
-  }
-  if (
-    /\b(city|town|municipality)\b/.test(allText) ||
-    /what.*city.*are.*you.*from/.test(allText) ||
-    /where.*are.*you.*from/.test(allText) ||
-    /which.*city/.test(allText)
-  ) {
-    return "CITY";
-  }
-  if (/\b(country|nation|nationality)\b/.test(allText)) {
-    return "COUNTRY";
-  }
-  if (/\b(zip|postal|postcode|post\s*code)\b/.test(allText)) {
-    return "ZIP_CODE";
-  }
-  if (
-    /\b(work|office|workplace)\b/.test(allText) ||
-    /where.*do.*you.*work/.test(allText) ||
-    /where.*are.*you.*employed/.test(allText) ||
-    /what.*company.*do.*you.*work/.test(allText)
-  ) {
-    return "COMPANY";
+  for (const type of typePriority) {
+    const keywords = mergedKeywords[type] || [];
+    if (keywords.some((keyword) => includesKeyword(allText, keyword))) {
+      return type;
+    }
   }
 
-  // Generic text detection
-  if (
-    input.tagName?.toLowerCase() === "textarea" ||
-    /\b(comment|description|message|note|detail|about|bio)\b/.test(allText)
-  ) {
+  if (input.tagName?.toLowerCase() === "textarea") {
     return "TEXT";
   }
 
@@ -1012,6 +1221,9 @@ function generatePersonName(userData) {
 // Helper function to generate consistent emails
 function generateEmail(userData) {
   ensureUserData(userData);
+  if (userData.email) {
+    return userData.email;
+  }
 
   // Generate email based on user's name (lowercase, no spaces)
   const emailName = `${userData.firstName}.${userData.lastName}`.toLowerCase();
@@ -1033,6 +1245,7 @@ function generateEmail(userData) {
   // Pick a random provider from the list
   const domain = faker.helpers.arrayElement(commonEmailProviders);
   const email = `${emailName}@${domain}`;
+  userData.email = email;
   
   console.log(
     `📧 Generated realistic email: "${email}" for user: ${userData.firstName} ${userData.lastName}`
